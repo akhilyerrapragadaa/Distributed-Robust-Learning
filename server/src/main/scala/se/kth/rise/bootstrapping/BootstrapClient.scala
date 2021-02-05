@@ -103,42 +103,36 @@ class BootstrapClient extends ComponentDefinition {
             currentNI = node.get_index()
             succNI = node.get_succ_index()
             predecessorN = node.get_pred_address()
+            println("My Predecessor!! ",predecessorN)
             successorN = node.get_succ_address()
+            println("My Successor", successorN)
             }
            }  
 
           trigger(NetMessage(self, server, Ready) -> net);
-          
-          println("List of integers generated ", gradient)
+          println("List of integers generated ", gradient);
           trigger(NetMessage(self, successorN, Msg(gradient(currentNI), currentNI)) -> net);
         }
         case _ => // ignore
       }
     }
 
-    case NetMessage(header, Msg(incGradient, index)) => {
-
-      // Reduce
-      max = (incGradient).max(gradient(index))
-      
+     case NetMessage(header, Msg(incGradient, index)) => {  
+      max = (incGradient).max(gradient(index));
       index match {
-      case index if index != succNI =>  trigger(NetMessage(self, successorN, Msg(max, index)) -> net);
-      // Share Phase
-      case _ => println("Computed max"+ max + "triggering to "+ successorN);  trigger(NetMessage(self, successorN, SharePhase(max, index)) -> net);
+      case index if index != succNI =>  trigger(NetMessage(self, successorN, Msg(max, index)) -> net); 
+      case _ =>  // Share phase 
+      println("Computed final gradient " + max + " for index " + index);  trigger(NetMessage(self, successorN, SharePhase(max, index)) -> net);
       }
-
     }
 
     case NetMessage(header, SharePhase(incGradient, index)) => {
-      println("Received from " + incGradient, index, header.src)
-
+      println("Received from " + incGradient, index, header.dst)
       index match {
-      case index if index != succNI => println("Final gradient for index ", index, incGradient); println("Triggering to", successorN); trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
-      case _ => // Do nothing
-      }
-      
+      case index if index != succNI => println("Final gradient for index ", index, incGradient); trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
+      case _ => // Do Nothing
+      }    
     }
-
   }
 
   override def tearDown(): Unit = {

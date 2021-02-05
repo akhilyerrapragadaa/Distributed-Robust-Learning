@@ -33,4 +33,3 @@ case object CheckIn extends KompicsEvent;
 case object Ready extends KompicsEvent;
 
 
-
