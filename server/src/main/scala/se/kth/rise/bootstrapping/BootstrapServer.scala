@@ -31,7 +31,9 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer._;
 import collection.mutable;
 import se.kth.rise.overlay._;
-import scala.util.Random.nextInt
+import scala.util.Random.nextInt;
+import se.kth.rise.byzantineresilliencealgorithm._;
+import scala.util.Random
 
 object BootstrapServer {
   sealed trait State;
@@ -60,8 +62,11 @@ class BootstrapServer extends ComponentDefinition {
   private var successorN : NetAddress = _;
   private var currentNI : Int = _;
   private var succNI : Int = _;
-  private var max: Int = _ ;
-  var gradient: Vector[Int] = Vector.fill(bootThreshold)(15).map(scala.util.Random.nextInt)
+  private var avg: Double = _ ;
+  private var mymap = scala.collection.mutable.Map[Int,List[Int]]()
+  var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
+  var mKrumAvg = cfg.getValue[Int]("id2203.project.MKrumAvg");
+  var gradient: Vector[Int] = Vector.fill(bootThreshold)(5).map(scala.util.Random.nextInt)
   //******* Handlers ******
   ctrl uponEvent {
     case _: Start => {
@@ -102,22 +107,18 @@ class BootstrapServer extends ComponentDefinition {
 
       assignment foreach { node =>
           if(self == node.get_current_address()){
-            log.info("Pred: "+ node.get_pred_address())
-            log.info("Current: "+ node.get_current_address())
-            log.info("Succ: "+ node.get_succ_address())
             currentNI = node.get_index()
             succNI = node.get_succ_index()
             predecessorN = node.get_pred_address()
             successorN = node.get_succ_address()
           }
       } 
-
       active foreach { node =>
         trigger(NetMessage(self, node, Boot(assignment)) -> net);
       }
       ready += self;
       println("List of integers generated ", gradient);
-      trigger(NetMessage(self, successorN, Msg(gradient(currentNI), currentNI)) -> net);
+      trigger(NetMessage(self, successorN, Msg(List(gradient(currentNI)), currentNI)) -> net);
     }
   }
 
@@ -130,17 +131,21 @@ class BootstrapServer extends ComponentDefinition {
       ready += header.src;
     }
     case NetMessage(header, Msg(incGradient, index)) => {
-      max = (incGradient).max(gradient(index));
+      mymap = MultiKrum.AllVals(incGradient, index, gradient);
+      println(mymap)
+
       index match {
-      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(max, index)) -> net);
+      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap.get(index).toList.flatten, index)) -> net); 
       case _ =>  // Share phase 
-      println("Computed final gradient " + max + " for index " + index);  trigger(NetMessage(self, successorN, SharePhase(max, index)) -> net);
+      avg = MultiKrum.MultiKrumInit(mymap.get(succNI).toList.flatten, closestVectors, mKrumAvg);
+      println("Computed final gradient " + avg + " for index " + index);  
+      trigger(NetMessage(self, successorN, SharePhase(avg, index)) -> net);
       }
     }
     case NetMessage(header, SharePhase(incGradient, index)) => {
-      println("Received from " + incGradient, index, header.dst)
       index match {
-      case index if index != succNI => println("Final gradient for index ", index, incGradient); trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
+      case index if index != succNI => println("Final gradient for index ", index, incGradient); 
+      trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
       case _ => // Do Nothing
       } 
     }
