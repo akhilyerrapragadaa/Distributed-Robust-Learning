@@ -31,6 +31,7 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer._;
 import se.kth.rise.overlay._;
 import se.kth.rise.byzantineresilliencealgorithm._;
+import scala.collection.mutable.ListBuffer;
 
 object BootstrapClient {
   sealed trait State;
@@ -58,10 +59,10 @@ class BootstrapClient extends ComponentDefinition {
   private var timeoutId: Option[UUID] = None;
   private var allworkers: Set[Node] = _ ;
   private var avg: Double = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,List[Int]]();
+  private var mymap = scala.collection.mutable.Map[Int,List[Double]]();
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
   var mKrumAvg = cfg.getValue[Int]("id2203.project.MKrumAvg");
-  var gradient: Vector[Int] = Vector.fill(bootThreshold)(80).map(scala.util.Random.nextInt)
+  var gradient: ListBuffer[Double] = ListBuffer()
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -105,6 +106,8 @@ class BootstrapClient extends ComponentDefinition {
            }  
 
           trigger(NetMessage(self, server, Ready) -> net);
+
+          generateGradients(bootThreshold);
           println("List of integers generated ", gradient);
           trigger(NetMessage(self, successorN, Msg(List(gradient(currentNI)), currentNI)) -> net);
         }
@@ -141,4 +144,16 @@ class BootstrapClient extends ComponentDefinition {
       case None      => // nothing to cancel
     }
   }
+
+  def generateGradients(threshold: Int): ListBuffer[Double] = {
+    var count: Int = 0;
+    while(count < threshold){
+      val random: Double = 0.5 + Math.random() * (0.7 - 0.5)
+      val rounded = BigDecimal(random).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
+      gradient += rounded
+      count += 1; count - 1
+    }
+    gradient
+  }
+
 }

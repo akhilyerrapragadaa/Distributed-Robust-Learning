@@ -1,15 +1,16 @@
 package se.kth.rise.byzantineresilliencealgorithm
 
-import Ordering.Double.IeeeOrdering
+import Ordering.Double.IeeeOrdering;
+import scala.collection.mutable.ListBuffer;
 
 object MultiKrum {
-  private var mymap = scala.collection.mutable.Map[Int,List[Int]]()
-  def AllVals(incGradient: List[Int], index : Int, gradient: Vector[Int]): scala.collection.mutable.Map[Int,List[Int]] = {
+  private var mymap = scala.collection.mutable.Map[Int,List[Double]]()
+  def AllVals(incGradient: List[Double], index : Int, gradient: ListBuffer[Double]): scala.collection.mutable.Map[Int,List[Double]] = {
     mymap += (index -> List(gradient(index)));   
     mymap.update(index, mymap(index) ::: incGradient)
     mymap
   }
-  def findCrossOver(arr: List[Int], low: Int, high: Int, x: Int): Int = {
+  def findCrossOver(arr: List[Double], low: Int, high: Int, x: Double): Int = {
 
     if (arr(high) <= x) 
       return high
@@ -27,7 +28,7 @@ object MultiKrum {
     return findCrossOver(arr, low, mid - 1, x)
   }
 
-  def printKclosest(arr: List[Int], x: Int, k: Int, n: Int): Double = {
+  def printKclosest(arr: List[Double], x: Double, k: Int, n: Int): Double = {
 
     var l: Int = findCrossOver(arr, 0, n - 1, x)
     var r: Int = l + 1
@@ -63,7 +64,7 @@ object MultiKrum {
     summation
   }
 
-  def MultiKrumInit(arr: List[Int], closestVectors: Int, mKrumAvg: Int): Double  = {
+  def MultiKrumInit(arr: List[Double], closestVectors: Int, mKrumAvg: Int): Double  = {
     var len = arr.length; 
     var sortedList = arr.sorted
     println(sortedList)
@@ -78,13 +79,13 @@ object MultiKrum {
     MKrumAvg(squared, sortedList, mKrumAvg)
   }
 
-  def MKrum(inp : Int, grad: Int): Double = {
+  def MKrum(inp : Double, grad: Double): Double = {
     var sqrdDist: Double = 0;
     sqrdDist = Math.abs(Math.pow((inp - grad),2));
     sqrdDist
   }
 
-  def MKrumAvg(lb: scala.collection.mutable.ListBuffer[Double], sl: List[Int], mKrumAvg: Int): Double = {
+  def MKrumAvg(lb: ListBuffer[Double], sl: List[Double], mKrumAvg: Int): Double = {
     val clb = lb.toList;
     val map = clb.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
     val smap = map.toList.sortBy(_._2)
