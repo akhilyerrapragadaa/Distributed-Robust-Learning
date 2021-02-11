@@ -51,5 +51,5 @@ java -jar server/target/scala-2.13/server.jar -p 45679 -s <bsip>:<bsport>
 This will start the normal server on localhost:45679, and ask it to connect to the bootstrap server at `<bsip>:<bsport>`.
 Make sure you start every node on a different port if they are all running directly on the local machine.
 
-By default you need 4 nodes (including the bootstrap server), before the system will actually generate assignments (predecessor and successor) and begins all-reduce implementation with a randomly generated vector in each worker. Note that the current implementation only supports worker length proportional to vector length.
+By default you need 5 nodes (including the bootstrap server), before the system will actually generate assignments (predecessor and successor) and begins all-reduce implementation with a randomly generated vector in each worker. Note that the current implementation only supports worker length proportional to vector length.
 The number can be changed in the configuration file (cf. [Kompics docs](http://kompics.github.io/current/tutorial/networking/basic/basic.html#cleanup-config-files-classmatchers-and-assembly) for background on Kompics configurations).
