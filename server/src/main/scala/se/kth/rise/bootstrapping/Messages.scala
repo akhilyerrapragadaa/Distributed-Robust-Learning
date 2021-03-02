@@ -24,11 +24,12 @@
 package se.kth.rise.bootstrapping;
 
 import se.sics.kompics.KompicsEvent;
-import se.kth.rise.overlay.Node
+import se.kth.rise.overlay.Node;
+import scala.collection.mutable.ListBuffer;
 
 case class Boot(assignment: Set[Node]) extends KompicsEvent;
-case class Msg(gradient: List[Double], index : Int) extends KompicsEvent;
-case class SharePhase(gradient: Double, index : Int) extends KompicsEvent;
+case class Msg(gradient: ListBuffer[List[Double]], index : Int) extends KompicsEvent;
+case class SharePhase(gradient: ListBuffer[List[Double]], index : Int) extends KompicsEvent;
 case object CheckIn extends KompicsEvent;
 case object Ready extends KompicsEvent;
 

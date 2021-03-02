@@ -51,6 +51,7 @@ class BootstrapClient extends ComponentDefinition {
   val self = cfg.getValue[NetAddress]("id2203.project.address");
   val server = cfg.getValue[NetAddress]("id2203.project.bootstrap-address");
   val bootThreshold = cfg.getValue[Int]("id2203.project.bootThreshold");
+  val featureCount = cfg.getValue[Int]("id2203.project.features");
   private var state: State = Waiting;
   private var currentNI : Int = _;
   private var succNI : Int = _;
@@ -59,10 +60,12 @@ class BootstrapClient extends ComponentDefinition {
   private var timeoutId: Option[UUID] = None;
   private var allworkers: Set[Node] = _ ;
   private var avg: Double = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,List[Double]]();
+  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
   var mKrumAvg = cfg.getValue[Int]("id2203.project.MKrumAvg");
   var gradient: ListBuffer[Double] = ListBuffer()
+  var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
+  private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -108,23 +111,31 @@ class BootstrapClient extends ComponentDefinition {
           trigger(NetMessage(self, server, Ready) -> net);
 
           generateGradients(bootThreshold);
+          var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
           println("List of integers generated ", gradient);
-          trigger(NetMessage(self, successorN, Msg(List(gradient(currentNI)), currentNI)) -> net);
+          println("List of integers generated in map ", gradientsToMap);
+          var converter = transporter(currentNI).map(List(_))
+          trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
         }
         case _ => // ignore
       }
     }
 
     case NetMessage(header, Msg(incGradient, index)) => {  
-      mymap = MultiKrum.AllVals(incGradient, index, gradient);     
+      var incConverter = transporter(index).map(List(_))
+      mymap = MultiKrum.AllVals(incGradient, index, incConverter);     
       println(mymap)
 
       index match {
-      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap.get(index).toList.flatten, index)) -> net); 
-      case _ =>  // Share phase 
-      avg = MultiKrum.MultiKrumInit(mymap.get(succNI).toList.flatten, closestVectors, mKrumAvg);
-      println("Computed final gradient " + avg + " for index " + index);  
-      trigger(NetMessage(self, successorN, SharePhase(avg, index)) -> net);
+      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap(index), index)) -> net); 
+      case _ =>  // Share phase
+      finalGradients += (index -> ListBuffer());
+      mymap(succNI) foreach { eachList =>
+        avg = MultiKrum.MultiKrumInit(eachList, closestVectors, mKrumAvg); 
+        finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
+      }
+      println("Computed final gradient " + finalGradients(index) + " for index " + index);  
+      trigger(NetMessage(self, successorN, SharePhase(finalGradients(index), index)) -> net);
       }
     }
 
@@ -132,6 +143,10 @@ class BootstrapClient extends ComponentDefinition {
 
       index match {
       case index if index != succNI => println("Final gradient for index ", index, incGradient); 
+      finalGradients += (index -> ListBuffer());
+      finalGradients.update(index, incGradient);
+      println("Byzantine resilient gradients for features! ");
+      println(finalGradients);
       trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
       case _ => // Do Nothing
       }    
@@ -145,15 +160,21 @@ class BootstrapClient extends ComponentDefinition {
     }
   }
 
-  def generateGradients(threshold: Int): ListBuffer[Double] = {
+  def generateGradients(threshold: Int): ListBuffer[ListBuffer[Double]] = {
     var count: Int = 0;
-    while(count < threshold){
+    while(count < featureCount){
       val random: Double = 0.5 + Math.random() * (0.7 - 0.5)
       val rounded = BigDecimal(random).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
       gradient += rounded
       count += 1; count - 1
     }
-    gradient
+    transporter = round(gradient.toList, threshold)
+    println(transporter)
+    transporter
+  }
+
+  def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
+    (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
   }
 
 }

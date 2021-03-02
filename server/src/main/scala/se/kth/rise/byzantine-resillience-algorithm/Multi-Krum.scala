@@ -4,10 +4,12 @@ import Ordering.Double.IeeeOrdering;
 import scala.collection.mutable.ListBuffer;
 
 object MultiKrum {
-  private var mymap = scala.collection.mutable.Map[Int,List[Double]]()
-  def AllVals(incGradient: List[Double], index : Int, gradient: ListBuffer[Double]): scala.collection.mutable.Map[Int,List[Double]] = {
-    mymap += (index -> List(gradient(index)));   
-    mymap.update(index, mymap(index) ::: incGradient)
+  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  def AllVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
+    mymap += (index -> ListBuffer())
+    incGradient.zipWithIndex.foreach{ case(x,i) => 
+      mymap.update(index, mymap(index) :++ ListBuffer(currGradient(i) ::: x))
+    }
     mymap
   }
   def findCrossOver(arr: List[Double], low: Int, high: Int, x: Double): Int = {
