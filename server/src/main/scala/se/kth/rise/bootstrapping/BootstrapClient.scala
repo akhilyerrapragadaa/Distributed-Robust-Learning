@@ -62,7 +62,7 @@ class BootstrapClient extends ComponentDefinition {
   private var avg: Double = _ ;
   private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
-  var mKrumAvg = cfg.getValue[Int]("id2203.project.MKrumAvg");
+  var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
   var gradient: ListBuffer[Double] = ListBuffer()
   var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
@@ -123,7 +123,7 @@ class BootstrapClient extends ComponentDefinition {
 
     case NetMessage(header, Msg(incGradient, index)) => {  
       var incConverter = transporter(index).map(List(_))
-      mymap = MultiKrum.AllVals(incGradient, index, incConverter);     
+      mymap = Brute.AllVals(incGradient, index, incConverter);    
       println(mymap)
 
       index match {
@@ -131,7 +131,7 @@ class BootstrapClient extends ComponentDefinition {
       case _ =>  // Share phase
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
-        avg = MultiKrum.MultiKrumInit(eachList, closestVectors, mKrumAvg); 
+         avg = Brute.BruteInit(eachList, closestVectors, bruteAvg);
         finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
       }
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
