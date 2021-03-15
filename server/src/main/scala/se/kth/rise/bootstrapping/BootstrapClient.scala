@@ -66,6 +66,7 @@ class BootstrapClient extends ComponentDefinition {
   var gradient: ListBuffer[Double] = ListBuffer()
   var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -123,7 +124,7 @@ class BootstrapClient extends ComponentDefinition {
 
     case NetMessage(header, Msg(incGradient, index)) => {  
       var incConverter = transporter(index).map(List(_))
-      mymap = Brute.AllVals(incGradient, index, incConverter);    
+      mymap = allVals(incGradient, index, incConverter);    
       println(mymap)
 
       index match {
@@ -131,7 +132,7 @@ class BootstrapClient extends ComponentDefinition {
       case _ =>  // Share phase
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
-         avg = Brute.BruteInit(eachList, closestVectors, bruteAvg);
+         avg = Bulyan.BulyanInit(eachList, closestVectors, bruteAvg);
         finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
       }
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
@@ -163,7 +164,7 @@ class BootstrapClient extends ComponentDefinition {
   def generateGradients(threshold: Int): ListBuffer[ListBuffer[Double]] = {
     var count: Int = 0;
     while(count < featureCount){
-      val random: Double = 0.5 + Math.random() * (0.7 - 0.5)
+      val random: Double = 0.6 + Math.random() * (0.7 - 0.6)
       val rounded = BigDecimal(random).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
       gradient += rounded
       count += 1; count - 1
@@ -175,6 +176,14 @@ class BootstrapClient extends ComponentDefinition {
 
   def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
     (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
+  }
+
+  def allVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
+    minmap += (index -> ListBuffer())
+    incGradient.zipWithIndex.foreach{ case(x,i) => 
+      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ::: x))
+    }
+    minmap
   }
 
 }

@@ -5,18 +5,8 @@ import scala.collection.mutable.ListBuffer;
 
 object Brute {
 
-private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
-  
-  def AllVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
-    mymap += (index -> ListBuffer())
-    incGradient.zipWithIndex.foreach{ case(x,i) => 
-      mymap.update(index, mymap(index) :++ ListBuffer(currGradient(i) ::: x))
-    }
-    mymap
-  }
-
   def BruteInit(input: List[Double], closestVectors: Int, bruteAvg: Int): Double = {
-    Println("Brute Initiated!!!!!......................................")
+    println("Brute Initiated!!!!!......................................")
     var allCombinations = input.combinations(closestVectors).toList;
     var maxVal: Double = 0.0;
     var maxed : List[(Double, List[Double])] = List()
