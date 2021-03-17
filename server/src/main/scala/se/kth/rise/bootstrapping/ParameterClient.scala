@@ -54,9 +54,8 @@ class BootstrapClient extends ComponentDefinition {
   val featureCount = cfg.getValue[Int]("id2203.project.features");
   private var state: State = Waiting;
   private var currentNI : Int = _;
-  private var succNI : Int = _;
-  private var predecessorN : NetAddress = _;
-  private var successorN : NetAddress = _;
+  private var psNode : NetAddress = _;
+  private var psNI : Int = _;
   private var timeoutId: Option[UUID] = None;
   private var allworkers: Set[Node] = _ ;
   private var avg: Double = _ ;
@@ -103,9 +102,8 @@ class BootstrapClient extends ComponentDefinition {
           assignment foreach { node =>
             if(self == node.get_current_address()) {
             currentNI = node.get_index()
-            succNI = node.get_succ_index()
-            predecessorN = node.get_pred_address()
-            successorN = node.get_succ_address()
+            psNI = node.get_ps_index()
+            psNode = node.get_ps_address()
             }
            }  
 
@@ -115,42 +113,15 @@ class BootstrapClient extends ComponentDefinition {
           var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
           println("List of integers generated ", gradient);
           println("List of integers generated in map ", gradientsToMap);
-          var converter = transporter(currentNI).map(List(_))
-          trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
+         
+          trigger(NetMessage(self, psNode, Msg(transporter, currentNI)) -> net);
         }
         case _ => // ignore
       }
     }
 
-    case NetMessage(header, Msg(incGradient, index)) => {  
-      var incConverter = transporter(index).map(List(_))
-      mymap = allVals(incGradient, index, incConverter);    
-      println(mymap)
-
-      index match {
-      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap(index), index)) -> net); 
-      case _ =>  // Share phase
-      finalGradients += (index -> ListBuffer());
-      mymap(succNI) foreach { eachList =>
-         avg = Bulyan.BulyanInit(eachList, closestVectors, bruteAvg);
-        finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
-      }
-      println("Computed final gradient " + finalGradients(index) + " for index " + index);  
-      trigger(NetMessage(self, successorN, SharePhase(finalGradients(index), index)) -> net);
-      }
-    }
-
     case NetMessage(header, SharePhase(incGradient, index)) => {
-
-      index match {
-      case index if index != succNI => println("Final gradient for index ", index, incGradient); 
-      finalGradients += (index -> ListBuffer());
-      finalGradients.update(index, incGradient);
-      println("Byzantine resilient gradients for features! ");
-      println(finalGradients);
-      trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
-      case _ => // Do Nothing
-      }    
+     println("Received gradients from ",index," and gradients ", incGradient);
     }
   }
 
@@ -176,14 +147,6 @@ class BootstrapClient extends ComponentDefinition {
 
   def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
     (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
-  }
-
-  def allVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
-    minmap += (index -> ListBuffer())
-    incGradient.zipWithIndex.foreach{ case(x,i) => 
-      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ::: x))
-    }
-    minmap
   }
 
 }

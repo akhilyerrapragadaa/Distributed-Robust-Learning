@@ -60,18 +60,19 @@ class BootstrapServer extends ComponentDefinition {
   private val active = mutable.HashSet.empty[NetAddress];
   private val ready = mutable.HashSet.empty[NetAddress];
   private var initialAssignment = scala.collection.immutable.Set[Node]()
-  private var predecessorN : NetAddress = _;
-  private var successorN : NetAddress = _;
+  private var psNode : NetAddress = _;
   private var currentNI : Int = _;
-  private var succNI : Int = _;
+  private var psNI : Int = _;
   private var avg: Double = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[List[Double]]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
   var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
   var gradient: ListBuffer[Double] = ListBuffer()
-  var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
+ 
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
-  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[Double]]]()
+
+
 
   //******* Handlers ******
   ctrl uponEvent { 
@@ -114,23 +115,14 @@ class BootstrapServer extends ComponentDefinition {
       assignment foreach { node =>
           if(self == node.get_current_address()){
             currentNI = node.get_index()
-            succNI = node.get_succ_index()
-            predecessorN = node.get_pred_address()
-            successorN = node.get_succ_address()
+            psNI = node.get_ps_index()
+            psNode = node.get_ps_address()
           }
       } 
       active foreach { node =>
         trigger(NetMessage(self, node, Boot(assignment)) -> net);
       }
       ready += self;
-      
-      generateGradients(bootThreshold);
-      var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-      println("List of integers generated ", gradient);
-      println("List of integers generated in map ", gradientsToMap);
-
-      var converter = transporter(currentNI).map(List(_))
-      trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
     }
   }
 
@@ -143,33 +135,27 @@ class BootstrapServer extends ComponentDefinition {
       ready += header.src;
     }
     case NetMessage(header, Msg(incGradient, index)) => {
-      var incConverter = transporter(index).map(List(_))
-      mymap = allVals(incGradient, index, incConverter);
-      println(mymap)
-
-      index match {
-      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap(index), index)) -> net); 
-      case _ =>  // Share phase
-      finalGradients += (index -> ListBuffer());
-      mymap(succNI) foreach { eachList =>
-        avg = Bulyan.BulyanInit(eachList, closestVectors, bruteAvg); 
-        finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
-      } 
-      println("Computed final gradient " + finalGradients(index) + " for index " + index);  
-      trigger(NetMessage(self, successorN, SharePhase(finalGradients(index), index)) -> net);
-      }
-    }
-    case NetMessage(header, SharePhase(incGradient, index)) => {
-      index match {
-      case index if index != succNI => println("Final gradient for index ", index, incGradient);
-      finalGradients += (index -> ListBuffer());
-      finalGradients.update(index, incGradient);
-      println("Byzantine resilient gradients for features! ");
-      println(finalGradients);
       
-      trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
-      case _ => // Do Nothing
-      } 
+      mymap = allVals(incGradient, index);
+      println(mymap);
+      
+      if(mymap.size == 1){
+      var sharer : ListBuffer[ListBuffer[Double]]= ListBuffer()
+      sharer = incGradient;
+    
+      mymap(0).zipWithIndex.foreach { case (each,i)=>
+         each.zipWithIndex.foreach { case (listOfEach,j) => 
+            avg = Bulyan.BulyanInit(listOfEach, closestVectors, bruteAvg);
+            sharer(i)(j) = avg;
+         }
+      }
+      println(sharer)
+      active foreach { node =>
+          if(self != node){
+            trigger(NetMessage(self, node, SharePhase(incGradient, psNI)) -> net);
+          }
+        }
+      }
     }
   }
 
@@ -186,29 +172,36 @@ class BootstrapServer extends ComponentDefinition {
     trigger(GetInitialAssignments(active.toSet) -> boot);
   }
 
-  def generateGradients(threshold: Int): ListBuffer[ListBuffer[Double]] = {
-    var count: Int = 0;
-    while(count < featureCount){
-      val random: Double = 0.55 + Math.random() * (0.6 - 0.55)
-      val rounded = BigDecimal(random).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
-      gradient += rounded
-      count += 1; count - 1
-    }
-    transporter = round(gradient.toList, threshold)
-    println(transporter)
-    transporter
-  }
+  def allVals(incGradient: ListBuffer[ListBuffer[Double]], index : Int): scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[List[Double]]]] = {
+     var transporter: ListBuffer[ListBuffer[List[Double]]] = ListBuffer()
+     var minnedMap = scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[List[Double]]]]()
 
-  def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
-    (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
-  }
+    minmap.update(index, incGradient);
+      
+    if(minmap.size == bootThreshold - 1){
+      
+      var dummy : ListBuffer[List[Double]] = ListBuffer()
+      minmap(1).zipWithIndex.foreach { case (m,l) => 
+        var converter = m.map(List(_))
+        transporter += converter;
+      }
 
-  def allVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
-    minmap += (index -> ListBuffer())
-    incGradient.zipWithIndex.foreach{ case(x,i) => 
-      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ::: x))
+      minmap foreach { case (i,x) =>
+      
+       x.zipWithIndex.foreach { case (y,j) => 
+       var converter = y.map(List(_))
+          converter.zipWithIndex.foreach { case (z,k) =>
+          println(transporter)
+            transporter(j)(k) = transporter(j)(k) ::: z;
+          }
+       }
+       println(" Transporter ", transporter)
+      }
+      minmap = scala.collection.mutable.Map();
+      minnedMap.update(0, transporter);
     }
-    minmap
+    minnedMap
   }
+  
 
 }
