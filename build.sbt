@@ -1,7 +1,7 @@
 name := "byzantine resilient ring all-reduce"
 organization in ThisBuild := "se.kth.rise"
 version in ThisBuild := "1.1"
-scalaVersion in ThisBuild:= "2.13.1"
+scalaVersion in ThisBuild:= "2.12.10"
 
 
 lazy val global = project
@@ -37,6 +37,7 @@ lazy val deps =
     val log4jV          = "1.2.+"
     val slf4jV          = "1.7.+"
     val fastparseV      = "2.1.3"
+    val dl4jVer         = "0.7.2"
 
 
     val logback        = "ch.qos.logback"             %  "logback-classic"                 % logbackV
@@ -47,6 +48,9 @@ lazy val deps =
     val nettyNetwork   = "se.sics.kompics.basic"      %  "kompics-component-netty-network" % kompicsV
     val kTimer         = "se.sics.kompics.basic"      %  "kompics-port-timer"              % kompicsV
     val javaTimer      = "se.sics.kompics.basic"      %  "kompics-component-java-timer"    % kompicsV
+    val jep            = "black.ninia"                %  "jep"                             % "3.9.1"
+    val dl4jCore            = "org.deeplearning4j" %  "rl4j-core"                       % dl4jVer
+    val nd4jNativePlatform  = "org.nd4j"           %  "nd4j-native-platform"            % dl4jVer
     val kSim           = "se.sics.kompics"            %% "kompics-scala-simulator"         % kompicsScalaV
     val commonUtils    = "com.larskroll"              %% "common-utils-scala"              % commonUtilsV
     val scallop        = "org.rogach"                 %% "scallop"                         % scallopV
@@ -62,6 +66,9 @@ lazy val commonDependencies = Seq(
   deps.kNetwork,
   deps.nettyNetwork,
   deps.kTimer,
+  deps.jep,
+  deps.dl4jCore,
+  deps.nd4jNativePlatform,
   deps.javaTimer,
   deps.commonUtils,
   deps.scallop,

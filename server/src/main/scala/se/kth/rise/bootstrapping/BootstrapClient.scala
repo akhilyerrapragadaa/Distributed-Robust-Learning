@@ -24,6 +24,7 @@
 package se.kth.rise.bootstrapping;
 
 import java.util.UUID;
+//import java.util.ArrayList;
 import se.kth.rise.networking._;
 import se.sics.kompics.sl._;
 import se.sics.kompics.Start;
@@ -32,7 +33,9 @@ import se.sics.kompics.timer._;
 import se.kth.rise.overlay._;
 import se.kth.rise.byzantineresilliencealgorithm._;
 import scala.collection.mutable.ListBuffer;
-
+//import scala.jdk.CollectionConverters._;
+import jep.Jep;
+  
 object BootstrapClient {
   sealed trait State;
   case object Waiting extends State;
@@ -67,6 +70,9 @@ class BootstrapClient extends ComponentDefinition {
   var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
   private var minmap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  var jepThread : Jep = _;
+  private var epochCount: Int = 0;
+  private var epochs: Int = 30;
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -111,11 +117,9 @@ class BootstrapClient extends ComponentDefinition {
 
           trigger(NetMessage(self, server, Ready) -> net);
 
-          generateGradients(bootThreshold);
-          var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-          println("List of integers generated ", gradient);
-          println("List of integers generated in map ", gradientsToMap);
+          var inC = generateGradients(1, bootThreshold, finalGradients);
           var converter = transporter(currentNI).map(List(_))
+          println("Converter...................", converter)
           trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
         }
         case _ => // ignore
@@ -133,7 +137,7 @@ class BootstrapClient extends ComponentDefinition {
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
          avg = Bulyan.BulyanInit(eachList, closestVectors, bruteAvg);
-        finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
+        finalGradients.update(index, finalGradients(index) ++ ListBuffer(List(avg)));
       }
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
       trigger(NetMessage(self, successorN, SharePhase(finalGradients(index), index)) -> net);
@@ -141,17 +145,66 @@ class BootstrapClient extends ComponentDefinition {
     }
 
     case NetMessage(header, SharePhase(incGradient, index)) => {
-
       index match {
-      case index if index != succNI => println("Final gradient for index ", index, incGradient); 
+      case index if index != succNI => println("Final gradient for index ", index, incGradient);
       finalGradients += (index -> ListBuffer());
       finalGradients.update(index, incGradient);
       println("Byzantine resilient gradients for features! ");
       println(finalGradients);
       trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
+      case index if index == succNI => 
+      if(epochCount <= epochs){
+        // Send all into this
+         var trainedGrads = generateGradients(2, bootThreshold, finalGradients);
+        // Trigger again
+         var converter = trainedGrads(currentNI).map(List(_))
+         trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
+         epochCount += 1; epochCount - 1 
+      }
       case _ => // Do Nothing
-      }    
+      } 
     }
+  }
+
+  def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]): ListBuffer[ListBuffer[Double]] = {
+    // There are multiple ways to evaluate. Let us demonstrate them:
+       if(incPhase == 1) {
+          MLPMnist.trig();
+         /*
+          val jep = new Jep()
+          jepThread = jep;
+          jepThread.runScript("/home/nanda/Thesis code/Distributed-Robust-Learning/server/src/main/scala/se/kth/rise/bootstrapping/mnist_cnn.py")
+          jepThread.eval(s"triggerModel($currentNI)")
+          val buffers = List(1,2,3,4,5)
+          jepThread.set("buffer", buffers);
+          jepThread.eval(s"c = triggerTraining($incPhase, buffer, $currentNI)")
+          val ans = jepThread.getValue("c").asInstanceOf[ArrayList[Double]]
+          val seq = ans.asScala.toList
+          gradient ++= seq
+          transporter = round(seq, threshold)
+                
+          var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
+          println("List of integers generated ", gradient);
+          println("List of integers generated in map ", gradientsToMap);
+          */
+         
+      }
+      if(incPhase == 2) {
+           /*
+          val sortProcess = scala.collection.mutable.Map(sharedGrads.toSeq.sortBy(_._1):_*)
+          val buffer = sortProcess.map{case(i, x) => x};
+          println(sortProcess)
+          println(buffer.flatten.flatten)
+          jepThread.set("epoched", buffer.flatten.flatten);
+          jepThread.eval(s"c = triggerTraining1($incPhase, epoched, $currentNI)")
+          val ans = jepThread.getValue("c").asInstanceOf[ArrayList[Double]]
+          val seq = ans.asScala.toList
+          gradient ++= seq
+          transporter = round(seq, threshold)
+          */
+      }
+      println(transporter)
+      transporter
   }
 
   override def tearDown(): Unit = {
@@ -160,28 +213,15 @@ class BootstrapClient extends ComponentDefinition {
       case None      => // nothing to cancel
     }
   }
-
-  def generateGradients(threshold: Int): ListBuffer[ListBuffer[Double]] = {
-    var count: Int = 0;
-    while(count < featureCount){
-      val random: Double = 0.6 + Math.random() * (0.7 - 0.6)
-      val rounded = BigDecimal(random).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
-      gradient += rounded
-      count += 1; count - 1
-    }
-    transporter = round(gradient.toList, threshold)
-    println(transporter)
-    transporter
-  }
-
+/*
   def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
     (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
   }
-
+*/
   def allVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
     minmap += (index -> ListBuffer())
     incGradient.zipWithIndex.foreach{ case(x,i) => 
-      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ::: x))
+      minmap.update(index, minmap(index) ++ ListBuffer(currGradient(i) ::: x))
     }
     minmap
   }
