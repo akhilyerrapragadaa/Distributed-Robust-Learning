@@ -1,7 +1,7 @@
 name := "byzantine resilient ring all-reduce"
 organization in ThisBuild := "se.kth.rise"
 version in ThisBuild := "1.1"
-scalaVersion in ThisBuild:= "2.12.10"
+scalaVersion in ThisBuild:= "2.13.1"
 
 
 lazy val global = project

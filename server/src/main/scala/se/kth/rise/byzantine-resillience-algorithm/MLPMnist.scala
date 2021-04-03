@@ -15,7 +15,9 @@ import org.nd4j.linalg.dataset.DataSet
 import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction
 import org.slf4j.LoggerFactory
 import org.nd4j.linalg.string.NDArrayStrings
-
+import scala.collection.mutable.ListBuffer;
+import org.nd4j.linalg.factory.Nd4j;
+import scala.collection.JavaConverters._
 /**
   * Two-layer MLP for MNIST using DL4J-style NeuralNet
   * model construction pattern.
@@ -32,13 +34,12 @@ object MLPMnist {
     val rngSeed = 123 // random number seed for reproducibility
     val numEpochs = 15 // number of epochs to perform
     val rate = 0.0015 // learning rate
+    var gradient: ListBuffer[Double] = ListBuffer()
+    var arrayGradient: Array[Double] = Array()
+    var model: MultiLayerNetwork = _;
 
-  def trig(): Unit = {
-
-    //Get the DataSetIterators:
-    val mnistTrain = new MnistDataSetIterator(batchSize, true, rngSeed)
-    val mnistTest = new MnistDataSetIterator(batchSize, false, rngSeed)
-
+  
+  def modelInit(): Unit = {
     println("Build model....")
     val conf = new NeuralNetConfiguration.Builder()
       .seed(rngSeed) //include a random seed for reproducibility
@@ -65,9 +66,16 @@ object MLPMnist {
       .pretrain(false).backprop(true) //use backpropagation to adjust weights
       .build
 
-    val model = new MultiLayerNetwork(conf)
+    model = new MultiLayerNetwork(conf)
     model.init()
     model.setListeners(new ScoreIterationListener(5)) //print the score with every iteration
+  }
+  
+  def trig(): ListBuffer[Double] = {
+
+    //Get the DataSetIterators:
+    val mnistTrain = new MnistDataSetIterator(batchSize, true, rngSeed)
+    val mnistTest = new MnistDataSetIterator(batchSize, false, rngSeed)
 
     println("Train model....")
     for (i <- 0 until 1) {
@@ -77,12 +85,26 @@ object MLPMnist {
     println("layers are ")
     
     var grads = model.gradient(); 
+
+    //println(grads.gradient())
+
+    println(grads.gradientForVariable())
     
     //println(grads.gradient().toString())
     //println(grads.gradientForVariable())
     //println(new NDArrayStrings(15).format(grads.gradient()))
     
-    println(new NDArrayStrings(8).format(grads.gradient()))
+    //println(new NDArrayStrings(8).format(grads.gradient()))
+
+    val z = new NDArrayStrings(8).format(grads.getGradientFor("1_b"))
+
+    var test = z.replace("[", " ");
+    test = test.replace("]", " ");
+
+    arrayGradient = test.split(",").map(_.toDouble).to(Array)
+    gradient = test.split(",").map(_.toDouble).to(ListBuffer)
+
+    println(gradient.length)
 
     println(grads.gradient().length())
     
@@ -98,5 +120,59 @@ object MLPMnist {
     }
     println(eval.stats)
     println("****************Example finished********************")
+    println(gradient.length)
+    gradient
+  }
+
+  def trigPhase2(inoc: Array[Double]): ListBuffer[Double] = {
+
+    //Get the DataSetIterators:
+    val mnistTrain = new MnistDataSetIterator(batchSize, true, rngSeed)
+    val mnistTest = new MnistDataSetIterator(batchSize, false, rngSeed)
+
+    var x_1d :INDArray = Nd4j.create(inoc);
+
+    model.gradient().setGradientFor("1_b", x_1d)
+
+    println("Train model....")
+    for (i <- 0 until 1) {
+      println("Epoch " + i)
+      model.fit(mnistTrain)
+    }
+    println("layers are ")
+    
+    var grads = model.gradient(); 
+    
+    println(grads.gradient())
+    //println(grads.gradientForVariable())
+    //println(new NDArrayStrings(15).format(grads.gradient()))
+    
+    //println(new NDArrayStrings(8).format(grads.gradient()))
+
+    val z = new NDArrayStrings(8).format(grads.getGradientFor("1_b"))
+
+    var test = z.replace("[", " ");
+    test = test.replace("]", " ");
+
+    gradient = test.split(",").map(_.toDouble).to(ListBuffer)
+
+    println(gradient.length)
+
+    println(grads.gradient().length())
+    
+    //println(grads.gradient().data())
+    //println(grads.gradient().getDouble(0))
+
+    println("Evaluate model....")
+    val eval = new Evaluation(outputNum) //create an evaluation object with 10 possible classes
+    while (mnistTest.hasNext) {
+      val next: DataSet = mnistTest.next
+      val output: INDArray = model.output(next.getFeatureMatrix) //get the networks prediction
+      eval.eval(next.getLabels, output) //check the prediction against the true class
+    }
+    println(eval.stats)
+    println("****************Example finished********************")
+    println(gradient.length)
+    gradient
   }
 }

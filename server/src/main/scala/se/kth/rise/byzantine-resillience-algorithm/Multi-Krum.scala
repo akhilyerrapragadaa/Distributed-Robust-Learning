@@ -1,5 +1,6 @@
 package se.kth.rise.byzantineresilliencealgorithm
 
+import Ordering.Double.IeeeOrdering;
 import scala.collection.mutable.ListBuffer;
 
 object MultiKrum {
