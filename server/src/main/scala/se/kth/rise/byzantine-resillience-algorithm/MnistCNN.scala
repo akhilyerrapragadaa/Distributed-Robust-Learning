@@ -1,19 +1,18 @@
-
 package se.kth.rise.byzantineresilliencealgorithm
 
 import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator
-import org.nd4j.linalg.dataset.api.iterator._
 import org.deeplearning4j.eval.Evaluation
 import org.deeplearning4j.nn.api.OptimizationAlgorithm
 import org.deeplearning4j.nn.conf.{NeuralNetConfiguration, Updater}
-import org.deeplearning4j.nn.conf.layers.{DenseLayer, OutputLayer}
+import org.deeplearning4j.nn.conf.inputs.InputType
+import org.deeplearning4j.nn.conf.layers.{ConvolutionLayer, DenseLayer, OutputLayer, SubsamplingLayer}
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
 import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener
 import org.nd4j.linalg.activations.Activation
 import org.nd4j.linalg.api.ndarray.INDArray
 import org.nd4j.linalg.dataset.DataSet
-import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction
+import org.nd4j.linalg.lossfunctions.LossFunctions
 import org.slf4j.LoggerFactory
 import org.nd4j.linalg.string.NDArrayStrings
 import scala.collection.mutable.ListBuffer;
@@ -25,54 +24,74 @@ import scala.collection.JavaConverters._
   *
   * @author David Kale
   */
-object MLPMnist {
+object MnistCNN {
 
-    //number of rows and columns in the input pictures
-    val numRows = 28
-    val numColumns = 28
-    val outputNum = 10 // number of output classes
-    val batchSize = 64 // batch size for each epoch
-    val rngSeed = 123 // random number seed for reproducibility
-    val numEpochs = 15 // number of epochs to perform
-    val rate = 0.0015 // learning rate
+    val nChannels = 1  // Number of input channels
+    val outputNum = 10 // The number of possible outcomes
+    val batchSize = 64 // Test batch size
+    val nEpochs = 1    // Number of training epochs
+    val iterations = 1 // Number of training iterations
+    val rngSeed = 12345     //
+    val seed = 123   
     var gradient: ListBuffer[Double] = ListBuffer()
     var arrayGradient: Array[Double] = Array()
     var model: MultiLayerNetwork = _;
     var miniBatch: Int = 2;
 
-  
-  def modelInit(): Unit = {
+
+    def modelInit(): Unit = {
     println("Build model....")
     val conf = new NeuralNetConfiguration.Builder()
-      .seed(rngSeed) //include a random seed for reproducibility
-      // use stochastic gradient descent as an optimization algorithm
+      .seed(seed)
+      .iterations(iterations)
+      .regularization(true) // Training iterations as above
+      .l2(0.0005)
+      /*
+        Uncomment the following for learning decay and bias
+      */
+      .learningRate(.01)//.biasLearningRate(0.02)
+      //.learningRateDecayPolicy(LearningRatePolicy.Inverse).lrPolicyDecayRate(0.001).lrPolicyPower(0.75)
+      .weightInit(WeightInit.XAVIER)
       .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-      .iterations(1)
-      .learningRate(0.006) //specify the learning rate
-      .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
-      .regularization(true)
-      .l2(1e-4)
+      .updater(Updater.NESTEROVS)
+      .momentum(0.9)
       .list
-      .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
-        .nIn(numRows * numColumns)
-        .nOut(100)
+      .layer(0, new ConvolutionLayer.Builder(5, 5)
+        //nIn and nOut specify depth. nIn here is the nChannels and nOut is the number of filters to be applied
+        .nIn(nChannels)
+        .stride(1, 1)
+        .nOut(20)
+        .activation(Activation.IDENTITY)
+        .build)
+      .layer(1, new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
+        .kernelSize(2, 2)
+        .stride(2, 2)
+        .build)
+      .layer(2, new ConvolutionLayer.Builder(5, 5)
+         //Note that nIn need not be specified in later layers
+        .stride(1, 1)
+        .nOut(50)
+        .activation(Activation.IDENTITY)
+        .build)
+      .layer(3, new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
+        .kernelSize(2, 2)
+        .stride(2, 2)
+        .build)
+      .layer(4, new DenseLayer.Builder()
         .activation(Activation.RELU)
-        .weightInit(WeightInit.XAVIER)
+        .nOut(500)
         .build)
-      .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
-        .nIn(100)
+      .layer(5, new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
         .nOut(outputNum)
-        .activation(Activation.SOFTMAX)
-        .weightInit(WeightInit.XAVIER)
-        .build)
-      .pretrain(false).backprop(true) //use backpropagation to adjust weights
-      .build
+        .activation(Activation.SOFTMAX).build)
+      .setInputType(InputType.convolutionalFlat(28, 28, 1)) //See note below
+      .backprop(true).pretrain(false).build
 
-    model = new MultiLayerNetwork(conf)
-    model.init()
-    model.setListeners(new ScoreIterationListener(5)) //print the score with every iteration
+       model = new MultiLayerNetwork(conf)
+       model.init()
+       model.setListeners(new ScoreIterationListener(1))
   }
-  
+
   def trig(nodeIndex: Int): ListBuffer[Double] = {
 
     //Get the DataSetIterators:
@@ -93,7 +112,7 @@ object MLPMnist {
     
     var grads = model.gradient(); 
 
-    val z = new NDArrayStrings(8).format(grads.getGradientFor("1_b"))
+    val z = new NDArrayStrings(8).format(grads.getGradientFor("5_b"))
 
     var test = z.replace("[", " ");
     test = test.replace("]", " ");
@@ -132,12 +151,12 @@ object MLPMnist {
     var printer1 = new NDArrayStrings(8).format(x_1d)
     println(" Incoming gradient!! ", printer1)
 
-    var printer2 =  new NDArrayStrings(8).format(model.gradient().getGradientFor("1_b"))
+    var printer2 =  new NDArrayStrings(8).format(model.gradient().getGradientFor("5_b"))
     println(" Current gradient!! ", printer2)
 
-    model.gradient().setGradientFor("1_b", x_1d)
+    model.gradient().setGradientFor("5_b", x_1d)
 
-    var printer3 = new NDArrayStrings(8).format(model.gradient().getGradientFor("1_b"))
+    var printer3 = new NDArrayStrings(8).format(model.gradient().getGradientFor("5_b"))
     println(" Incoming updated with current!! ", printer3)
 
     var incO = model.gradient()
@@ -159,7 +178,7 @@ object MLPMnist {
     
     var grads = model.gradient(); 
 
-    val z = new NDArrayStrings(8).format(grads.getGradientFor("1_b"))
+    val z = new NDArrayStrings(8).format(grads.getGradientFor("5_b"))
 
     var test = z.replace("[", " ");
     test = test.replace("]", " ");
@@ -182,4 +201,5 @@ object MLPMnist {
     println(gradient.length)
     gradient
   }
+
 }

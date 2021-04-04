@@ -70,8 +70,8 @@ class BootstrapClient extends ComponentDefinition {
   var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
   private var minmap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
-  private var epochCount: Int = 0;
-  private var epochs: Int = 30;
+  private var epochCount: Int = 1;
+  private var epochs: Int = 50;
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -175,8 +175,8 @@ class BootstrapClient extends ComponentDefinition {
   def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]): ListBuffer[ListBuffer[Double]] = {
     // There are multiple ways to evaluate. Let us demonstrate them:
         if(incPhase == 1) {
-          MLPMnist.modelInit(); 
-          gradient = MLPMnist.trig(); 
+          MnistCNN.modelInit(); 
+          gradient = MnistCNN.trig(currentNI); 
           transporter = round(gradient.toList, threshold)
                
           var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
@@ -188,7 +188,7 @@ class BootstrapClient extends ComponentDefinition {
           val buffer = sortProcess.map{case(i, x) => x};
           println(sortProcess)
           println(buffer.flatten.flatten)
-          gradient = MLPMnist.trigPhase2(buffer.flatten.flatten.toArray); 
+           gradient = MnistCNN.trigPhase2(buffer.flatten.flatten.toArray, epochCount, currentNI); 
           transporter = round(gradient.toList, threshold)
       }
       println(transporter)
