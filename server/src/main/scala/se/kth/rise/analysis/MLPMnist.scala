@@ -1,5 +1,5 @@
 
-package se.kth.rise.byzantineresilliencealgorithm
+package se.kth.rise.analysis;
 
 import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator
 import org.nd4j.linalg.dataset.api.iterator._
@@ -124,8 +124,6 @@ object MLPMnist {
     val mnistTrain = new MnistDataSetIterator(batchSize, true, rngSeed)
     val mnistTrain1 = new MnistDataSetIterator(batchSize, true, rngSeed)
     val mnistTest = new MnistDataSetIterator(batchSize, false, rngSeed)
-
-    println("Gradient is", model.gradient().gradientForVariable())
 
     var x_1d :INDArray = Nd4j.create(inoc);
     
