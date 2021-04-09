@@ -48,9 +48,9 @@ lazy val deps =
     val nettyNetwork   = "se.sics.kompics.basic"      %  "kompics-component-netty-network" % kompicsV
     val kTimer         = "se.sics.kompics.basic"      %  "kompics-port-timer"              % kompicsV
     val javaTimer      = "se.sics.kompics.basic"      %  "kompics-component-java-timer"    % kompicsV
-    val jep            = "black.ninia"                %  "jep"                             % "3.9.1"
-    val dl4jCore            = "org.deeplearning4j" %  "rl4j-core"                       % dl4jVer
-    val nd4jNativePlatform  = "org.nd4j"           %  "nd4j-native-platform"            % dl4jVer
+    val dl4jCore            = "org.deeplearning4j"    %  "rl4j-core"                       % dl4jVer
+    val nd4jNativePlatform  = "org.nd4j"              %  "nd4j-native-platform"            % dl4jVer
+    val openCSV        = "au.com.bytecode"            % "opencsv"                          % "2.4"
     val kSim           = "se.sics.kompics"            %% "kompics-scala-simulator"         % kompicsScalaV
     val commonUtils    = "com.larskroll"              %% "common-utils-scala"              % commonUtilsV
     val scallop        = "org.rogach"                 %% "scallop"                         % scallopV
@@ -66,9 +66,9 @@ lazy val commonDependencies = Seq(
   deps.kNetwork,
   deps.nettyNetwork,
   deps.kTimer,
-  deps.jep,
   deps.dl4jCore,
   deps.nd4jNativePlatform,
+  deps.openCSV,
   deps.javaTimer,
   deps.commonUtils,
   deps.scallop,

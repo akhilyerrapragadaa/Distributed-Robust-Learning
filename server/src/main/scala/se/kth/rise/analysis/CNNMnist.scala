@@ -80,10 +80,10 @@ object CNNMnist {
                  .build())
         .layer(
           4,
-          new DenseLayer.Builder().name("ffn1").nOut(384).dropOut(0.2).build())
+          new DenseLayer.Builder().name("ffn1").activation(Activation.RELU).nOut(384).dropOut(0.2).build())
         .layer(
           5,
-          new DenseLayer.Builder().name("ffn2").nOut(192).dropOut(0.2).build())
+          new DenseLayer.Builder().name("ffn2").activation(Activation.RELU).nOut(192).dropOut(0.2).build())
         .layer(
           6,
           new OutputLayer.Builder(

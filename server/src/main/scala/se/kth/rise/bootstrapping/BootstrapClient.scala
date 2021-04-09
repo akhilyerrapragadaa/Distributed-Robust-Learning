@@ -35,7 +35,6 @@ import se.kth.rise.byzantineresilliencealgorithm._;
 import se.kth.rise.analysis._;
 import scala.collection.mutable.ListBuffer;
 //import scala.jdk.CollectionConverters._;
-import jep.Jep;
   
 object BootstrapClient {
   sealed trait State;
@@ -129,14 +128,14 @@ class BootstrapClient extends ComponentDefinition {
     case NetMessage(header, Msg(incGradient, index)) => {  
       var incConverter = transporter(index).map(List(_))
       mymap = allVals(incGradient, index, incConverter);    
-      println(mymap)
+      //println(mymap)
 
       index match {
       case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap(index), index)) -> net); 
       case _ =>  // Share phase
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
-         avg = Bulyan.BulyanInit(eachList, closestVectors, bruteAvg);
+         avg = Brute.BruteInit(eachList, closestVectors, bruteAvg);
         finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
       }
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
@@ -150,7 +149,7 @@ class BootstrapClient extends ComponentDefinition {
       finalGradients += (index -> ListBuffer());
       finalGradients.update(index, incGradient);
       println("Byzantine resilient gradients for features! ");
-      println(finalGradients);
+      //println(finalGradients);
       trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
       case index if index == succNI => 
         if(epochCount <= epochs){
@@ -176,20 +175,20 @@ class BootstrapClient extends ComponentDefinition {
   def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]): ListBuffer[ListBuffer[Double]] = {
     // There are multiple ways to evaluate. Let us demonstrate them:
         if(incPhase == 1) {
-          MLPMnist.modelInit(); 
+          MLPMnist.modelInit(currentNI); 
           gradient = MLPMnist.trig(currentNI); 
           transporter = round(gradient.toList, threshold)
                
           var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-          println("List of integers generated ", gradient);
-          println("List of integers generated in map ", gradientsToMap);
+          //println("List of integers generated ", gradient);
+          //println("List of integers generated in map ", gradientsToMap);
       }
       if(incPhase == 2) {
           val sortProcess = scala.collection.mutable.Map(sharedGrads.toSeq.sortBy(_._1):_*)
           val buffer = sortProcess.map{case(i, x) => x};
           println(sortProcess)
           println(buffer.flatten.flatten)
-           gradient = MLPMnist.trigPhase2(buffer.flatten.flatten.toArray, epochCount, currentNI); 
+           gradient = MLPMnist.trigPhase2(buffer.flatten.flatten.toArray, epochCount, currentNI, epochs); 
           transporter = round(gradient.toList, threshold)
       }
       println(transporter)
