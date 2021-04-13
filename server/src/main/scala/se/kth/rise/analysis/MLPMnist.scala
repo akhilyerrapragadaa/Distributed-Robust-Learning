@@ -30,16 +30,16 @@ object MLPMnist {
     val numRows = 28
     val numColumns = 28
     val outputNum = 10 // number of output classes
-    val batchSize = 64 // batch size for each epoch
+    val batchSize = 83 // batch size for each epoch
     val rngSeed = 123 // random number seed for reproducibility
     val numEpochs = 15 // number of epochs to perform
     val rate = 0.0015 // learning rate
-    var gradient: ListBuffer[Double] = ListBuffer()
-    var arrayGradient: Array[Double] = Array()
+    var gradient: ListBuffer[Float] = ListBuffer()
+    var arrayGradient: Array[Float] = Array()
     var miniBatch: Int = 0;
     var globModel: MultiLayerNetwork = _;
     var epochToCSV: ListBuffer[Int] = ListBuffer()
-    var accuracyToCSV: ListBuffer[Double] = ListBuffer()
+    var accuracyToCSV: ListBuffer[Float] = ListBuffer()
     val csvFields = Array("epoch", "accuracy")
   
   def modelInit(nodeIndex: Int): Unit = {
@@ -66,33 +66,26 @@ object MLPMnist {
     var model = new MultiLayerNetwork(conf)
     model.init()
     model.setListeners(new ScoreIterationListener(5)) //print the score with every iteration
-    ModelSerializer.writeModel(model, "/Users/akhil/Desktop/Thesis code/Distributed-Robust-Learning/server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip", true)
+    ModelSerializer.writeModel(model, "server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip", true)
   }
   
-  def trig(nodeIndex: Int): ListBuffer[Double] = {
+  def trig(nodeIndex: Int): ListBuffer[Float] = {
 
     //Get the DataSetIterators:
     val mnistTrain1 = new MnistDataSetIterator(batchSize, true, rngSeed)
     val mnistTest = new MnistDataSetIterator(batchSize, false, rngSeed)
 
-    var model : MultiLayerNetwork  = ModelSerializer.restoreMultiLayerNetwork("/Users/akhil/Desktop/Thesis code/Distributed-Robust-Learning/server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip")
+    var model : MultiLayerNetwork  = ModelSerializer.restoreMultiLayerNetwork("server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip")
 
     miniBatch = 0;
     println("Epoch 0")
 
-   var diver = 10
+   var diver = 144
 
-     if(nodeIndex == 1) {
-      diver = 40;
-    }
-    if(nodeIndex == 2) {
-      diver = 50;
-    }
-
-     while (miniBatch < 937) {
+     while (miniBatch < 722) {
       if(miniBatch >= (nodeIndex * diver)  &&  miniBatch < ((nodeIndex + 1) * diver)){
         println(miniBatch)
-       val next: DataSet = mnistTrain1.next(64)
+       val next: DataSet = mnistTrain1.next(83)
        model.fit(next)
        }
        miniBatch += 1; miniBatch - 1
@@ -102,17 +95,15 @@ object MLPMnist {
 
     var grads = model.gradient(); 
 
-    val z = new NDArrayStrings(8).format(grads.getGradientFor("0_W"))
+    val z = new NDArrayStrings(8).format(grads.gradient())
 
     var test = z.replace("[", " ");
     test = test.replace("]", " ");
 
-    arrayGradient = test.split(",").map(_.toDouble).to(Array)
-    gradient = test.split(",").map(_.toDouble).to(ListBuffer)
+    arrayGradient = test.split(",").map(_.toFloat).to(Array)
+    gradient = test.split(",").map(_.toFloat).to(ListBuffer)
 
-    println(" Conversion in progress!!! ",gradient)
-
-    println(grads.gradient().length())
+    println(" Conversion in progress!!! ",grads)
 
     println("Evaluate model....")
     val eval = new Evaluation(outputNum) //create an evaluation object with 10 possible classes
@@ -122,14 +113,14 @@ object MLPMnist {
       eval.eval(next.getLabels, output) //check the prediction against the true class
     }
     epochToCSV += 0
-    accuracyToCSV += eval.accuracy()
+    accuracyToCSV += eval.accuracy().toFloat
     println(eval.stats)
     println("****************Example finished********************")
     println(gradient.length)
     gradient
   }
 
-  def trigPhase2(inoc: Array[Double], incEpoch: Int, nodeIndex: Int, totalEpochs: Int): ListBuffer[Double] = {
+  def trigPhase2(inoc: Array[Float], incEpoch: Int, nodeIndex: Int, totalEpochs: Int): ListBuffer[Float] = {
 
     //Get the DataSetIterators:
     val mnistTrain = new MnistDataSetIterator(batchSize, true, rngSeed)
@@ -138,67 +129,61 @@ object MLPMnist {
 
     var clone = globModel;
 
-    //val no = inoc.grouped(784).toArray
+    var (left, right) = inoc.splitAt(7840)
 
-    var x_1d :INDArray = Nd4j.create(inoc);
-    println(x_1d)
-    
-    var printer1 = new NDArrayStrings(8).format(x_1d)
-   // println(" Incoming gradient!! ", printer1)
+    var x_2d :INDArray = Nd4j.create(right);
 
-    var printer2 =  new NDArrayStrings(8).format(clone.gradient().getGradientFor("0_W"))
-   // println(" Current gradient!! ", printer2)
 
-   clone.gradient().setGradientFor("0_W", x_1d)
+    val wts = left.grouped(10).toArray
 
-   /*
-    Proof that gradients are updating
-    clone.gradient().setGradientFor("0_W", Nd4j.ones(784, 100))
-    clone.gradient().setGradientFor("1_W", Nd4j.ones(100, 10))
-   
-    clone.gradient().setGradientFor("0_b", Nd4j.ones(100))
-    clone.gradient().setGradientFor("1_b", Nd4j.ones(10))
-    */
+    var x_1d :INDArray = Nd4j.create(wts);
+    //println(x_1d)
 
-    var printer3 = new NDArrayStrings(8).format(clone.gradient().getGradientFor("0_W"))
-    //println(" Incoming updated with current!! ", printer3)
+    if(nodeIndex == 2) {
+      //Byzantines
+      println("BYZANTINE!!!!")
+      var shape = Array(784, 10)  
+      x_1d = Nd4j.rand(shape, Nd4j.getDistributions().createUniform(-1, 999))
+      //Nd4j.zeros(784, 10)
+      println(x_1d)
+
+      var shape2 = Array(10)  
+      x_2d = Nd4j.rand(shape2, Nd4j.getDistributions().createUniform(-100, 900))
+      //Nd4j.ones(10)
+    }
+
+    clone.gradient().setGradientFor("0_W", x_1d)
+    clone.gradient().setGradientFor("0_b", x_2d)
 
     globModel.update(clone.gradient())
 
      miniBatch = 0;
      println("Epoch " + incEpoch)
 
-     var diver = 10
-
-    if(nodeIndex == 1) {
-      diver = 40;
-    }
-    if(nodeIndex == 2) {
-      diver = 50;
-    }
+     var diver = 144
 
 
-    while (miniBatch < 937) {
+    while (miniBatch < 722) {
       if(miniBatch >= (nodeIndex * diver)  &&  miniBatch < ((nodeIndex + 1) * diver)){
         println(miniBatch)
-       val next: DataSet = mnistTrain1.next(64)
+       val next: DataSet = mnistTrain1.next(83)
        globModel.fit(next)
        }
        miniBatch += 1; miniBatch - 1
     }
 
-     ModelSerializer.writeModel(globModel, "/Users/akhil/Desktop/Thesis code/Distributed-Robust-Learning/server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip", true)
+     ModelSerializer.writeModel(globModel, "server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip", true)
 
     println("layers are ")
     
     var grads = globModel.gradient(); 
 
-    val z = new NDArrayStrings(8).format(grads.getGradientFor("0_W"))
+    val z = new NDArrayStrings(8).format(grads.gradient())
 
     var test = z.replace("[", " ");
     test = test.replace("]", " ");
 
-    gradient = test.split(",").map(_.toDouble).to(ListBuffer)
+    gradient = test.split(",").map(_.toFloat).to(ListBuffer)
 
     println(gradient.length)
 
@@ -212,21 +197,21 @@ object MLPMnist {
       eval.eval(next.getLabels, output) //check the prediction against the true class
     }
      epochToCSV += incEpoch
-    accuracyToCSV += eval.accuracy()
-    if(incEpoch == totalEpochs) {
+    accuracyToCSV += eval.accuracy().toFloat
+   
       var listOfRecords = new ListBuffer[Array[String]]()
-      val str = "/Users/akhil/Desktop/Thesis code/Distributed-Robust-Learning/server/src/main/stats/MLPMniist"+  nodeIndex +".csv"
+      val str = "server/src/main/stats/MLPMniist"+  nodeIndex +".csv"
       val outputFile = new BufferedWriter(new FileWriter(str)) //replace the path with the desired path and filename with the desired filename
       val csvWriter = new CSVWriter(outputFile)
       val random = new Random()
       listOfRecords += csvFields
       
-     for(i<- 0 until totalEpochs){ listOfRecords+=Array(epochToCSV(i).toString, accuracyToCSV(i).toString )}
+     for(i<- 0 until incEpoch){ listOfRecords+=Array(epochToCSV(i).toString, accuracyToCSV(i).toString )}
 
       csvWriter.writeAll(listOfRecords.toList.asJava)
       outputFile.close()
     
-    }
+
     println(eval.stats)
     println("****************Example finished********************")
     println(gradient.length)

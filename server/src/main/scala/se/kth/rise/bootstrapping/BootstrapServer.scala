@@ -67,16 +67,16 @@ class BootstrapServer extends ComponentDefinition {
   private var successorN : NetAddress = _;
   private var currentNI : Int = _;
   private var succNI : Int = _;
-  private var avg: Double = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  private var avg: Float = _ ;
+  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
   var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
-  var gradient: ListBuffer[Double] = ListBuffer()
-  var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
-  private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
-  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  var gradient: ListBuffer[Float] = ListBuffer()
+  var transporter: ListBuffer[ListBuffer[Float]] = ListBuffer()
+  private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
+  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   private var epochCount: Int = 1;
-  private var epochs: Int = 1900;
+  private var epochs: Int = 1000;
 
   //******* Handlers ******
   ctrl uponEvent { 
@@ -130,7 +130,7 @@ class BootstrapServer extends ComponentDefinition {
       
       var inC = generateGradients(1, bootThreshold, finalGradients);
       println(inC.length)
-      var converter = transporter(currentNI).map(List(_))
+      var converter = transporter(currentNI).map(Array(_))
       println("Converter...................", converter)
       trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
     }
@@ -145,7 +145,7 @@ class BootstrapServer extends ComponentDefinition {
       ready += header.src;
     }
     case NetMessage(header, Msg(incGradient, index)) => {
-      var incConverter = transporter(index).map(List(_))
+      var incConverter = transporter(index).map(Array(_))
       mymap = allVals(incGradient, index, incConverter);
       //println(mymap)
 
@@ -154,8 +154,8 @@ class BootstrapServer extends ComponentDefinition {
       case _ =>  // Share phase
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
-        avg = Brute.BruteInit(eachList, closestVectors, bruteAvg);
-        finalGradients.update(index, finalGradients(index) :++ ListBuffer(List(avg)));
+        avg = MultiKrum.MultiKrumInit(eachList.toList, closestVectors, bruteAvg);
+        finalGradients.update(index, finalGradients(index) :++ ListBuffer(Array(avg)));
       } 
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
       trigger(NetMessage(self, successorN, SharePhase(finalGradients(index), index)) -> net);
@@ -181,7 +181,7 @@ class BootstrapServer extends ComponentDefinition {
         epochCount += 1; epochCount - 1
         println(epochCount)
         
-        var converter = trainedGrads(currentNI).map(List(_))
+        var converter = trainedGrads(currentNI).map(Array(_))
         println("Converter...................", converter)
         trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
       }
@@ -190,7 +190,7 @@ class BootstrapServer extends ComponentDefinition {
     }
   }
 
-  def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]): ListBuffer[ListBuffer[Double]] = {
+  def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]): ListBuffer[ListBuffer[Float]] = {
     // There are multiple ways to evaluate. Let us demonstrate them:
        if(incPhase == 1) {
           MLPMnist.modelInit(currentNI); 
@@ -226,15 +226,15 @@ class BootstrapServer extends ComponentDefinition {
     trigger(GetInitialAssignments(active.toSet) -> boot);
   }
 
-  def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
+  def round(l: List[Float], n: Int): ListBuffer[ListBuffer[Float]] = {
     (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
   }
   
 
-  def allVals(incGradient: ListBuffer[List[Double]], index : Int, currGradient: ListBuffer[List[Double]]): scala.collection.mutable.Map[Int,ListBuffer[List[Double]]] = {
+  def allVals(incGradient: ListBuffer[Array[Float]], index : Int, currGradient: ListBuffer[Array[Float]]): scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]] = {
     minmap += (index -> ListBuffer())
     incGradient.zipWithIndex.foreach{ case(x,i) => 
-      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ::: x))
+      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ++ x))
     }
     minmap
   }

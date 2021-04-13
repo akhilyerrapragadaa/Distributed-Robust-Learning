@@ -1,11 +1,11 @@
 package se.kth.rise.byzantineresilliencealgorithm
 
-import Ordering.Double.IeeeOrdering;
+import Ordering.Float.IeeeOrdering;
 import scala.collection.mutable.ListBuffer;
 
 object MultiKrum {
   
-  def findCrossOver(arr: List[Double], low: Int, high: Int, x: Double): Int = {
+  def findCrossOver(arr: List[Float], low: Int, high: Int, x: Float): Int = {
 
     if (arr(high) <= x) 
       return high
@@ -23,12 +23,12 @@ object MultiKrum {
     return findCrossOver(arr, low, mid - 1, x)
   }
 
-  def printKclosest(arr: List[Double], x: Double, k: Int, n: Int): Double = {
+  def printKclosest(arr: List[Float], x: Float, k: Int, n: Int): Float = {
 
     var l: Int = findCrossOver(arr, 0, n - 1, x)
     var r: Int = l + 1
     var count: Int = 0
-    var summation: Double = 0.0
+    var summation: Float = 0.0f
 
     if (arr(l) == x) { l -= 1; l + 1 }
 
@@ -59,11 +59,11 @@ object MultiKrum {
     summation
   }
 
-  def MultiKrumInit(arr: List[Double], closestVectors: Int, mKrumAvg: Int): Double  = {
+  def MultiKrumInit(arr: List[Float], closestVectors: Int, mKrumAvg: Int): Float  = {
     var len = arr.length; 
     var sortedList = arr.sorted
     println(sortedList)
-    var squared = scala.collection.mutable.ListBuffer.empty[Double]
+    var squared = scala.collection.mutable.ListBuffer.empty[Float]
 
     sortedList foreach { each =>
     var eachGen = printKclosest(sortedList, each, closestVectors, len)
@@ -74,19 +74,19 @@ object MultiKrum {
     MKrumAvg(squared, sortedList, mKrumAvg)
   }
 
-  def MKrum(inp : Double, grad: Double): Double = {
-    var sqrdDist: Double = 0;
-    sqrdDist = Math.abs(Math.pow((inp - grad),2));
+  def MKrum(inp : Float, grad: Float): Float = {
+    var sqrdDist: Float = 0;
+    sqrdDist = Math.abs(Math.pow((inp - grad),2).toFloat);
     sqrdDist
   }
 
-  def MKrumAvg(lb: ListBuffer[Double], sl: List[Double], mKrumAvg: Int): Double = {
+  def MKrumAvg(lb: ListBuffer[Float], sl: List[Float], mKrumAvg: Int): Float = {
     val clb = lb.toList;
     val map = clb.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
     val smap = map.toList.sortBy(_._2)
     var count: Int = 0
-    var sum: Double = 0.0;
-    var avg: Double = 0.0; 
+    var sum: Float = 0.0f;
+    var avg: Float = 0.0f; 
     println(smap)
 
     while(count < mKrumAvg){
