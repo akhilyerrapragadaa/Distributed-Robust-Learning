@@ -63,14 +63,14 @@ class BootstrapServer extends ComponentDefinition {
   private var psNode : NetAddress = _;
   private var currentNI : Int = _;
   private var psNI : Int = _;
-  private var avg: Double = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[List[Double]]]]()
+  private var avg: Float = _ ;
+  private var mymap = scala.collection.mutable.Map[Int,Array[List[Float]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
   var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
-  var gradient: ListBuffer[Double] = ListBuffer()
+  var gradient: ListBuffer[Float] = ListBuffer()
  
-  private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
-  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[Double]]]()
+  private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Float]]]()
+  private var minmap = scala.collection.mutable.Map[Int,Array[Float]]()
 
 
 
@@ -100,7 +100,6 @@ class BootstrapServer extends ComponentDefinition {
           log.info("{} hosts in ready set.", ready.size);
           if (ready.size >= bootThreshold) {
             log.info("Finished seeding. Bootstrapping complete.");
-            suicide();
           }
         }
       }
@@ -135,28 +134,29 @@ class BootstrapServer extends ComponentDefinition {
       ready += header.src;
     }
     case NetMessage(header, Msg(incGradient, index)) => {
+      var doo : Array[List[Float]] = Array()
       
-      mymap = allVals(incGradient, index);
-      println(mymap);
+      doo = allVals(incGradient, index);
+      println(doo(0).length);
       
-      if(mymap.size == 1){
-      var sharer : ListBuffer[ListBuffer[Double]]= ListBuffer()
+      if(doo(0).length == 7){
+      var sharer : Array[Float]= Array()
       sharer = incGradient;
     
-      mymap(0).zipWithIndex.foreach { case (each,i)=>
-         each.zipWithIndex.foreach { case (listOfEach,j) => 
+         doo.zipWithIndex.foreach { case (listOfEach,j) => 
             avg = Bulyan.BulyanInit(listOfEach, closestVectors, bruteAvg);
-            sharer(i)(j) = avg;
+            sharer(j) = avg;
          }
-      }
-      println(sharer)
+      
+      println(sharer.length)
       active foreach { node =>
           if(self != node){
-            trigger(NetMessage(self, node, SharePhase(incGradient, psNI)) -> net);
+            trigger(NetMessage(self, node, SharePhase(sharer, psNI)) -> net);
           }
         }
-      }
+      } 
     }
+    
   }
 
   override def tearDown(): Unit = {
@@ -172,22 +172,31 @@ class BootstrapServer extends ComponentDefinition {
     trigger(GetInitialAssignments(active.toSet) -> boot);
   }
 
-  def allVals(incGradient: ListBuffer[ListBuffer[Double]], index : Int): scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[List[Double]]]] = {
-     var transporter: ListBuffer[ListBuffer[List[Double]]] = ListBuffer()
-     var minnedMap = scala.collection.mutable.Map[Int,ListBuffer[ListBuffer[List[Double]]]]()
+  def allVals(incGradient: Array[Float], index : Int): Array[List[Float]] = {
+     var transporter: Array[List[Float]] = Array()
+     var minnedMap = scala.collection.mutable.Map[Int, Array[List[Float]]]()
 
+    var convrtr = incGradient
     minmap.update(index, incGradient);
-      
+
+    transporter = incGradient.map(List(_))
+
     if(minmap.size == bootThreshold - 1){
-      
-      var dummy : ListBuffer[List[Double]] = ListBuffer()
+
+      minmap(1).zipWithIndex.foreach { case (m,l) => 
+        transporter(l) = List()
+        transporter(l) = List(m) ::: List(minmap(2)(l)) ::: List(minmap(3)(l)) ::: List(minmap(4)(l)) ::: List(minmap(5)(l)) ::: List(minmap(6)(l)) ::: List(minmap(7)(l))
+      }
+
+      /*
+      var dummy : ListBuffer[List[Float]] = ListBuffer()
       minmap(1).zipWithIndex.foreach { case (m,l) => 
         var converter = m.map(List(_))
         transporter += converter;
       }
 
       minmap foreach { case (i,x) =>
-      
+      if(x != 1) { 
        x.zipWithIndex.foreach { case (y,j) => 
        var converter = y.map(List(_))
           converter.zipWithIndex.foreach { case (z,k) =>
@@ -195,12 +204,15 @@ class BootstrapServer extends ComponentDefinition {
             transporter(j)(k) = transporter(j)(k) ::: z;
           }
        }
+       }
        println(" Transporter ", transporter)
       }
       minmap = scala.collection.mutable.Map();
       minnedMap.update(0, transporter);
+    */
     }
-    minnedMap
+    println(transporter)
+    transporter
   }
   
 

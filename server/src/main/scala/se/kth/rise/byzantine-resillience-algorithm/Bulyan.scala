@@ -1,15 +1,15 @@
 package se.kth.rise.byzantineresilliencealgorithm
 
-import Ordering.Double.IeeeOrdering;
+import Ordering.Float.IeeeOrdering;
 import scala.collection.mutable.ListBuffer;
 
 object Bulyan {
 
-  def findClosest(arr: List[Double], target: Double): Double = {
+  def findClosest(arr: List[Float], target: Float): Float = {
     var idx: Int = 0
-    var dist: Double = Math.abs(arr(0) - target)
+    var dist: Float = Math.abs(arr(0) - target)
     for (i <- 1 until arr.length) {
-      val cdist: Double = Math.abs(arr(i) - target)
+      val cdist: Float = Math.abs(arr(i) - target)
       if (cdist < dist) {
         idx = i
         dist = cdist
@@ -18,16 +18,16 @@ object Bulyan {
     arr(idx)
   }
 
-  def BulyanInit(input: List[Double], closestVectors: Int, bruteAvg: Int): Double = {
+  def BulyanInit(input: List[Float], closestVectors: Int, bruteAvg: Int): Float = {
     println("Bulyan Initiated!!!!!......................................")
-    var chosen: Double = 0.0;
-    var receivedSet: ListBuffer[Double] = ListBuffer();
+    var chosen: Float = 0.0f;
+    var receivedSet: ListBuffer[Float] = ListBuffer();
     receivedSet ++= input
-    var selectionSet: ListBuffer[Double] = ListBuffer();
-    var maxVal: Double = 0.0;
-    var maxed : List[(Double, Double)] = List();
-    var minBulVal: Double = 0.0;
-    var minedBul : List[(Double, List[Double])] = List();
+    var selectionSet: ListBuffer[Float] = ListBuffer();
+    var maxVal: Float = 0.0f;
+    var maxed : List[(Float, Float)] = List();
+    var minBulVal: Float = 0.0f;
+    var minedBul : List[(Float, List[Float])] = List();
     
     
     // Step 1 (Multi Krum with n-f-2 being 4 and avg 1 which literally makes it Krum)
@@ -52,7 +52,7 @@ object Bulyan {
         }
         maxed = maxed:+ ((x, maxVal));
         println(" All median values ",maxed)
-        maxVal = 0.0;
+        maxVal = 0.0f;
     }
 
     var allCombinations = selectionSet.toList.combinations(3).toList;
@@ -67,7 +67,7 @@ object Bulyan {
                 minBulVal = minBulVal + diff;
         }
       minedBul = minedBul :+ ((minBulVal, each));
-      minBulVal = 0.0;
+      minBulVal = 0.0f;
     }
     
     println("Mined bulyan vals ", minedBul)
@@ -79,4 +79,3 @@ object Bulyan {
     summed
   }
 }
-

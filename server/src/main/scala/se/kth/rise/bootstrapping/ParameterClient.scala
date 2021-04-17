@@ -31,6 +31,7 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer._;
 import se.kth.rise.overlay._;
 import se.kth.rise.byzantineresilliencealgorithm._;
+import se.kth.rise.analysis._;
 import scala.collection.mutable.ListBuffer;
 
 object BootstrapClient {
@@ -58,14 +59,16 @@ class BootstrapClient extends ComponentDefinition {
   private var psNI : Int = _;
   private var timeoutId: Option[UUID] = None;
   private var allworkers: Set[Node] = _ ;
-  private var avg: Double = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  private var avg: Float = _ ;
+  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[List[Float]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
   var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
-  var gradient: ListBuffer[Double] = ListBuffer()
-  var transporter: ListBuffer[ListBuffer[Double]] = ListBuffer()
-  private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
-  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[List[Double]]]()
+  var gradient: ListBuffer[Float] = ListBuffer()
+  var transporter: Array[Float] = Array()
+  private var finalGradients = scala.collection.mutable.Map[Int,Array[Float]]()
+  private var minmap = scala.collection.mutable.Map[Int,List[Float]]()
+  private var epochCount: Int = 1;
+  private var epochs: Int = 1000;
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -109,10 +112,7 @@ class BootstrapClient extends ComponentDefinition {
 
           trigger(NetMessage(self, server, Ready) -> net);
 
-          generateGradients(bootThreshold);
-          var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-          println("List of integers generated ", gradient);
-          println("List of integers generated in map ", gradientsToMap);
+          generateGradients(1, bootThreshold - 1, finalGradients);
          
           trigger(NetMessage(self, psNode, Msg(transporter, currentNI)) -> net);
         }
@@ -122,6 +122,24 @@ class BootstrapClient extends ComponentDefinition {
 
     case NetMessage(header, SharePhase(incGradient, index)) => {
      println("Received gradients from ",index," and gradients ", incGradient);
+      finalGradients += (index -> Array());
+      finalGradients.update(index, incGradient);
+
+      if(epochCount <= epochs){
+        // Send all into this
+        var trainedGrads = generateGradients(2, bootThreshold - 1, finalGradients);
+        // Trigger again
+        mymap = scala.collection.mutable.Map()
+        finalGradients = scala.collection.mutable.Map()
+        minmap = scala.collection.mutable.Map()
+
+        epochCount += 1; epochCount - 1
+        println(epochCount)
+
+        println("Converter...................", trainedGrads)
+        trigger(NetMessage(self, psNode, Msg(trainedGrads, currentNI)) -> net);
+      }
+      
     }
   }
 
@@ -132,21 +150,23 @@ class BootstrapClient extends ComponentDefinition {
     }
   }
 
-  def generateGradients(threshold: Int): ListBuffer[ListBuffer[Double]] = {
-    var count: Int = 0;
-    while(count < featureCount){
-      val random: Double = 0.6 + Math.random() * (0.7 - 0.6)
-      val rounded = BigDecimal(random).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
-      gradient += rounded
-      count += 1; count - 1
-    }
-    transporter = round(gradient.toList, threshold)
-    println(transporter)
-    transporter
-  }
-
-  def round(l: List[Double], n: Int): ListBuffer[ListBuffer[Double]] = {
-    (0 until n).map{ i => l.drop(i).sliding(1, n).flatten.to(collection.mutable.ListBuffer) }.to(collection.mutable.ListBuffer)
+  def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,Array[Float]]): Array[Float] = {
+    // There are multiple ways to evaluate. Let us demonstrate them:
+       if(incPhase == 1) {
+          MLPMnist.modelInit(currentNI); 
+          gradient = MLPMnist.trig(currentNI); 
+          transporter = gradient.toArray
+               
+          var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
+          //println("List of integers generated ", gradient);
+          //println("List of integers generated in map ", gradientsToMap);
+      }
+      if(incPhase == 2) {
+          gradient = MLPMnist.trigPhase2(sharedGrads(0), epochCount, currentNI, epochs); 
+          transporter = gradient.toArray
+      }
+      println(transporter)
+      transporter
   }
 
 }

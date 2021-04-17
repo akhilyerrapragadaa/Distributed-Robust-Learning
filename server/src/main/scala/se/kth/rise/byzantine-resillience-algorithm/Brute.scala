@@ -1,15 +1,17 @@
 package se.kth.rise.byzantineresilliencealgorithm
 
-import Ordering.Double.IeeeOrdering;
+import Ordering.Float.IeeeOrdering;
 import scala.collection.mutable.ListBuffer;
 
 object Brute {
 
-  def BruteInit(input: List[Double], closestVectors: Int, bruteAvg: Int): Double = {
+  def BruteInit(input: List[Float], closestVectors: Int, bruteAvg: Int): Float = {
     println("Brute Initiated!!!!!......................................")
+    println(input)
     var allCombinations = input.combinations(closestVectors).toList;
-    var maxVal: Double = 0.0;
-    var maxed : List[(Double, List[Double])] = List()
+    println(allCombinations)
+    var maxVal: Float = 0.0f;
+    var maxed : List[(Float, List[Float])] = List()
     
     allCombinations foreach { each => 
     var squaredList = each.map(x => x*x);
@@ -24,7 +26,7 @@ object Brute {
         }
     }
         maxed = maxed:+((maxVal, each));
-        maxVal = 0.0;
+        maxVal = 0.0f;
     }
     var sorted = maxed.sortBy(r => (r._1))
     println("Sorted acsending ",sorted);
