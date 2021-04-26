@@ -59,7 +59,7 @@ object MultiKrum {
     summation
   }
 
-  def MultiKrumInit(arr: List[Float], closestVectors: Int, mKrumAvg: Int): Float  = {
+  def MultiKrumInit(arr: List[Float], closestVectors: Int, mKrumAvg: Int, epochC: Int): Float  = {
     var len = arr.length; 
     var sortedList = arr.sorted
     println(sortedList)
@@ -71,7 +71,7 @@ object MultiKrum {
     }
     println(squared)
 
-    MKrumAvg(squared, sortedList, mKrumAvg)
+    MKrumAvg(squared, sortedList, mKrumAvg, epochC)
   }
 
   def MKrum(inp : Float, grad: Float): Float = {
@@ -80,20 +80,36 @@ object MultiKrum {
     sqrdDist
   }
 
-  def MKrumAvg(lb: ListBuffer[Float], sl: List[Float], mKrumAvg: Int): Float = {
+  def MKrumAvg(lb: ListBuffer[Float], sl: List[Float], mKrumAvg: Int, incE: Int): Float = {
     val clb = lb.toList;
     val map = clb.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-    val smap = map.toList.sortBy(_._2)
     var count: Int = 0
     var sum: Float = 0.0f;
     var avg: Float = 0.0f; 
-    println(smap)
+    
 
-    while(count < mKrumAvg){
+    if(incE <= 100){
+      val smap = map.toList.sortBy(_._2).reverse
+      println("Descending!! ", smap)
+
+      while(count < mKrumAvg){
       val (key, vals) = smap(count)
       sum += sl(key)
       count += 1; count - 1 
+      }
     }
+
+     if(incE > 100){
+      val smap = map.toList.sortBy(_._2)
+       println("Ascending!! ", smap)
+
+      while(count < mKrumAvg){
+      val (key, vals) = smap(count)
+      sum += sl(key)
+      count += 1; count - 1 
+      }
+    }
+
     avg = sum/mKrumAvg;
     println(avg)
     avg

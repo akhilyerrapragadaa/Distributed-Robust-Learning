@@ -5,7 +5,7 @@ import scala.collection.mutable.ListBuffer;
 
 object Brute {
 
-  def BruteInit(input: List[Float], closestVectors: Int, bruteAvg: Int): Float = {
+  def BruteInit(input: List[Float], closestVectors: Int, bruteAvg: Int, epochC: Int): Float = {
     println("Brute Initiated!!!!!......................................")
     var allCombinations = input.combinations(closestVectors).toList;
     var maxVal: Float = 0.0f;
@@ -26,8 +26,15 @@ object Brute {
         maxed = maxed:+((maxVal, each));
         maxVal = 0.0f;
     }
-    var sorted = maxed.sortBy(r => (r._1))
+    var sorted : List[(Float, List[Float])] = List()
+    if(epochC <= 100) {
+    sorted = maxed.sortBy(r => (r._1)).reverse
+    println("Sorted descending ",sorted);
+    }
+    if(epochC > 100) {
+    sorted = maxed.sortBy(r => (r._1))
     println("Sorted acsending ",sorted);
+    }
     var finlGrads = sorted(0)._2
     println("Min of Max ", finlGrads);
     var summed = finlGrads.reduceLeft(_ + _) / bruteAvg;

@@ -154,7 +154,7 @@ class BootstrapServer extends ComponentDefinition {
       case _ =>  // Share phase
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
-        avg = MultiKrum.MultiKrumInit(eachList.toList, closestVectors, bruteAvg);
+        avg = Bulyan.BulyanInit(eachList.toList, closestVectors, bruteAvg, epochCount);
         finalGradients.update(index, finalGradients(index) :++ ListBuffer(Array(avg)));
       } 
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
@@ -173,6 +173,7 @@ class BootstrapServer extends ComponentDefinition {
       if(epochCount <= epochs){
        // Send all into this
         var trainedGrads = generateGradients(2, bootThreshold, finalGradients);
+        println(trainedGrads)
         // Trigger again
         mymap = scala.collection.mutable.Map()
         finalGradients = scala.collection.mutable.Map()
