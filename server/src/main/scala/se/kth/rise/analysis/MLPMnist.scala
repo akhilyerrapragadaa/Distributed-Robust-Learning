@@ -93,6 +93,7 @@ object MLPMnist {
      if(nodeIndex == 2 || nodeIndex == 3) {
       //Byzantines
       println("BYZANTINE!!!!")
+      var clon = model;
       var shape = Array(784, 10)  
       var x_1d = Nd4j.rand(shape, Nd4j.getDistributions().createUniform(-1, 999))
       //Nd4j.zeros(784, 10)
@@ -102,10 +103,10 @@ object MLPMnist {
       var x_2d = Nd4j.rand(shape2, Nd4j.getDistributions().createUniform(-100, 900))
       //Nd4j.ones(10)
 
-      model.gradient().setGradientFor("0_W", x_1d)
-      model.gradient().setGradientFor("0_b", x_2d)
+      clon.gradient().setGradientFor("0_W", x_1d)
+      clon.gradient().setGradientFor("0_b", x_2d)
 
-      model.update(model.gradient())
+      model.update(clon.gradient())
     }
     
     globModel = model;

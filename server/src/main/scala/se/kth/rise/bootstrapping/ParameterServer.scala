@@ -179,13 +179,17 @@ class BootstrapServer extends ComponentDefinition {
 
     transporter = incGradient.map(List(_))
 
+    var thresh = Array.range(2, bootThreshold)
+
     if(minmap.size == bootThreshold - 1){
 
       minmap(1).zipWithIndex.foreach { case (m,l) => 
         transporter(l) = List()
+        transporter(l) = List(m)
 
-        // Change this statically for now
-        transporter(l) = List(m) ::: List(minmap(2)(l)) ::: List(minmap(3)(l))
+        thresh.zipWithIndex foreach { case (g,k) => 
+          transporter(l) = transporter(l) ::: List(minmap(g)(l))
+        }
       }
 
       minmap = scala.collection.mutable.Map()
