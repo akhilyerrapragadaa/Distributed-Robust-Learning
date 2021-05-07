@@ -137,7 +137,7 @@ class BootstrapServer extends ComponentDefinition {
       doo = allVals(incGradient, index);
       println(doo(0).length);
       
-      if(doo(0).length == 3){
+      if(doo(0).length == bootThreshold - 1){
       var sharer : Array[Float]= Array()
       sharer = incGradient;
     
