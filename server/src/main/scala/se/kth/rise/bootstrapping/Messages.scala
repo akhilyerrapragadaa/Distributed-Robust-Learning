@@ -28,7 +28,7 @@ import se.kth.rise.overlay.Node;
 import scala.collection.mutable.ListBuffer;
 
 case class Boot(assignment: Set[Node]) extends KompicsEvent;
-case class Msg(gradient: Array[Float], index : Int) extends KompicsEvent;
+case class Msg(gradient: Array[Float], index : Int, epoch: Int) extends KompicsEvent;
 case class SharePhase(gradient: Array[Float], index : Int) extends KompicsEvent;
 case object CheckIn extends KompicsEvent;
 case object Ready extends KompicsEvent;

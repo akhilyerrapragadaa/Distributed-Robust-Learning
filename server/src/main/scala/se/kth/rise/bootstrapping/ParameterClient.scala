@@ -69,6 +69,7 @@ class BootstrapClient extends ComponentDefinition {
   private var minmap = scala.collection.mutable.Map[Int,List[Float]]()
   private var epochCount: Int = 1;
   private var epochs: Int = 1000;
+  var startTimeMillis: Long = _;
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -111,10 +112,11 @@ class BootstrapClient extends ComponentDefinition {
            }  
 
           trigger(NetMessage(self, server, Ready) -> net);
+          startTimeMillis = System.currentTimeMillis()
 
           generateGradients(1, bootThreshold - 1, finalGradients);
          
-          trigger(NetMessage(self, psNode, Msg(transporter, currentNI)) -> net);
+          trigger(NetMessage(self, psNode, Msg(transporter, currentNI, epochCount)) -> net);
         }
         case _ => // ignore
       }
@@ -137,9 +139,14 @@ class BootstrapClient extends ComponentDefinition {
         println(epochCount)
 
         println("Converter...................", trainedGrads)
-        trigger(NetMessage(self, psNode, Msg(trainedGrads, currentNI)) -> net);
+        trigger(NetMessage(self, psNode, Msg(trainedGrads, currentNI, epochCount)) -> net);
       }
-      
+      if(epochCount > 2) {
+        println("EXECUTION TIME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        val endTimeMillis = System.currentTimeMillis()
+        val durationSeconds = (endTimeMillis - startTimeMillis) / 1000
+        println(durationSeconds)
+      }   
     }
   }
 

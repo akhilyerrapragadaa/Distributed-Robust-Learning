@@ -30,10 +30,9 @@ object MLPMnist {
     val numRows = 28
     val numColumns = 28
     val outputNum = 10 // number of output classes
-    val batchSize = 83 // batch size for each epoch
+    val batchSize = 256 // batch size for each epoch
     val rngSeed = 123 // random number seed for reproducibility
     val numEpochs = 15 // number of epochs to perform
-    val rate = 0.0015 // learning rate
     var gradient: ListBuffer[Float] = ListBuffer()
     var arrayGradient: Array[Float] = Array()
     var miniBatch: Int = 0;
@@ -49,7 +48,7 @@ object MLPMnist {
       // use stochastic gradient descent as an optimization algorithm
       .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
       .iterations(1)
-      .learningRate(0.006) //specify the learning rate
+      .learningRate(0.5) //specify the learning rate
       .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
       .regularization(true)
       .l2(1e-4)
@@ -80,17 +79,35 @@ object MLPMnist {
     miniBatch = 0;
     println("Epoch 0")
 
-   var diver = 103
+   var diver = 21
 
-     while (miniBatch < 722) {
-      if(miniBatch >= (nodeIndex * diver)  &&  miniBatch < ((nodeIndex + 1) * diver)){
+     while (miniBatch < 234) {
+      if(miniBatch >= ((nodeIndex - 1) * diver)  &&  miniBatch < (nodeIndex * diver)){
         println(miniBatch)
-       val next: DataSet = mnistTrain1.next(83)
+       val next: DataSet = mnistTrain1.next
        model.fit(next)
        }
        miniBatch += 1; miniBatch - 1
     }
 
+     if(nodeIndex == 2 || nodeIndex == 3) {
+      //Byzantines
+      println("BYZANTINE!!!!")
+      var shape = Array(784, 10)  
+      var x_1d = Nd4j.rand(shape, Nd4j.getDistributions().createUniform(-1, 999))
+      //Nd4j.zeros(784, 10)
+      println(x_1d)
+
+      var shape2 = Array(10)  
+      var x_2d = Nd4j.rand(shape2, Nd4j.getDistributions().createUniform(-100, 900))
+      //Nd4j.ones(10)
+
+      model.gradient().setGradientFor("0_W", x_1d)
+      model.gradient().setGradientFor("0_b", x_2d)
+
+      model.update(model.gradient())
+    }
+    
     globModel = model;
 
     var grads = model.gradient(); 
@@ -139,7 +156,8 @@ object MLPMnist {
     var x_1d :INDArray = Nd4j.create(wts);
     //println(x_1d)
 
-    if(nodeIndex == 2) {
+ 
+    if(nodeIndex == 2 || nodeIndex == 3 ) {
       //Byzantines
       println("BYZANTINE!!!!")
       var shape = Array(784, 10)  
@@ -151,7 +169,8 @@ object MLPMnist {
       x_2d = Nd4j.rand(shape2, Nd4j.getDistributions().createUniform(-100, 900))
       //Nd4j.ones(10)
     }
-
+ 
+ 
     clone.gradient().setGradientFor("0_W", x_1d)
     clone.gradient().setGradientFor("0_b", x_2d)
 
@@ -160,13 +179,13 @@ object MLPMnist {
      miniBatch = 0;
      println("Epoch " + incEpoch)
 
-     var diver = 103
+     var diver = 21
 
 
-    while (miniBatch < 722) {
+    while (miniBatch < 234) {
       if(miniBatch >= ((nodeIndex - 1) * diver)  &&  miniBatch < (nodeIndex * diver)){
         println(miniBatch)
-       val next: DataSet = mnistTrain1.next(83)
+       val next: DataSet = mnistTrain1.next
        globModel.fit(next)
        }
        miniBatch += 1; miniBatch - 1
@@ -200,7 +219,7 @@ object MLPMnist {
     accuracyToCSV += eval.accuracy().toFloat
    
       var listOfRecords = new ListBuffer[Array[String]]()
-      val str = "server/src/main/stats/MLPMnist"+  nodeIndex +".csv"
+      val str = "server/src/main/stats/MLPMniist"+  nodeIndex +".csv"
       val outputFile = new BufferedWriter(new FileWriter(str)) //replace the path with the desired path and filename with the desired filename
       val csvWriter = new CSVWriter(outputFile)
       val random = new Random()

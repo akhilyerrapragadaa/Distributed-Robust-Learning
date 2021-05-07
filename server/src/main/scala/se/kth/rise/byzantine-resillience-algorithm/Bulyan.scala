@@ -18,7 +18,7 @@ object Bulyan {
     arr(idx)
   }
 
-  def BulyanInit(input: List[Float], closestVectors: Int, bruteAvg: Int): Float = {
+  def BulyanInit(input: List[Float], closestVectors: Int, bruteAvg: Int, epochC: Int): Float = {
     println("Bulyan Initiated!!!!!......................................")
     var chosen: Float = 0.0f;
     var receivedSet: ListBuffer[Float] = ListBuffer();
@@ -31,9 +31,9 @@ object Bulyan {
     
     
     // Step 1 (Multi Krum with n-f-2 being 4 and avg 1 which literally makes it Krum)
-    while(selectionSet.length < 5){
+    while(selectionSet.length < 7){
         println(" Former "+ receivedSet)
-        chosen = Brute.BruteInit(receivedSet.toList, receivedSet.length - 1, receivedSet.length - 1);
+        chosen = bruteInit(receivedSet.toList, receivedSet.length - 2, receivedSet.length - 2, epochC);
         var closestVal = findClosest(receivedSet.toList, chosen);
         receivedSet -= closestVal;
         selectionSet += closestVal;
@@ -71,11 +71,51 @@ object Bulyan {
     }
     
     println("Mined bulyan vals ", minedBul)
-    var sorted = minedBul.sortBy(r => (r._1))
+
+    var sorted : List[(Float, List[Float])] = List()
+    if(epochC <= 100) {
+    println("Sorted descending ",sorted);
+    sorted = minedBul.sortBy(r => (r._1)).reverse
+    }
+    if(epochC > 100) {
+    sorted = minedBul.sortBy(r => (r._1))
     println("Sorted acsending ",sorted);
+    }
+
     var finlGrads = sorted(0)._2
     println("Min of Max ", finlGrads);
     var summed = finlGrads.reduceLeft(_ + _) / 3;
+    summed
+  }
+
+  def bruteInit(input: List[Float], closestVectors: Int, bruteAvg: Int, epochC: Int): Float = {
+    println("Brute Initiated!!!!!......................................")
+    var allCombinations = input.combinations(closestVectors).toList;
+    var maxVal: Float = 0.0f;
+    var maxed : List[(Float, List[Float])] = List()
+    
+    allCombinations foreach { each => 
+    var squaredList = each.map(x => x*x);
+    squaredList.zipWithIndex.foreach{ case(x,i) => 
+        squaredList.zipWithIndex.foreach{ case(y,j) =>
+            if(i!=j){
+                var diff = Math.abs(x-y)
+                if(diff > maxVal){
+                    maxVal = diff;
+                }
+            }
+        }
+    }
+        maxed = maxed:+((maxVal, each));
+        maxVal = 0.0f;
+    }
+
+    var sorted = maxed.sortBy(r => (r._1))
+    println("Sorted acsending ",sorted);
+
+    var finlGrads = sorted(0)._2
+    println("Min of Max ", finlGrads);
+    var summed = finlGrads.reduceLeft(_ + _) / bruteAvg;
     summed
   }
 }

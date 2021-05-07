@@ -72,8 +72,6 @@ class BootstrapServer extends ComponentDefinition {
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[List[Float]]]()
   private var minmap = scala.collection.mutable.Map[Int,Array[Float]]()
 
-
-
   //******* Handlers ******
   ctrl uponEvent { 
     case _: Start => {
@@ -133,18 +131,18 @@ class BootstrapServer extends ComponentDefinition {
     case NetMessage(header, Ready) => {
       ready += header.src;
     }
-    case NetMessage(header, Msg(incGradient, index)) => {
+    case NetMessage(header, Msg(incGradient, index, epochC)) => {
       var doo : Array[List[Float]] = Array()
       
       doo = allVals(incGradient, index);
       println(doo(0).length);
       
-      if(doo(0).length == 7){
+      if(doo(0).length == 3){
       var sharer : Array[Float]= Array()
       sharer = incGradient;
     
          doo.zipWithIndex.foreach { case (listOfEach,j) => 
-            avg = Bulyan.BulyanInit(listOfEach, closestVectors, bruteAvg);
+            avg = Brute.BruteInit(listOfEach, closestVectors, bruteAvg, epochC);
             sharer(j) = avg;
          }
       
@@ -185,8 +183,12 @@ class BootstrapServer extends ComponentDefinition {
 
       minmap(1).zipWithIndex.foreach { case (m,l) => 
         transporter(l) = List()
-        transporter(l) = List(m) ::: List(minmap(2)(l)) ::: List(minmap(3)(l)) ::: List(minmap(4)(l)) ::: List(minmap(5)(l)) ::: List(minmap(6)(l)) ::: List(minmap(7)(l))
+
+        // Change this statically for now
+        transporter(l) = List(m) ::: List(minmap(2)(l)) ::: List(minmap(3)(l))
       }
+
+      minmap = scala.collection.mutable.Map()
 
       /*
       var dummy : ListBuffer[List[Float]] = ListBuffer()
@@ -211,7 +213,7 @@ class BootstrapServer extends ComponentDefinition {
       minnedMap.update(0, transporter);
     */
     }
-    println(transporter)
+    println(transporter.length)
     transporter
   }
   
