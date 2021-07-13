@@ -65,13 +65,13 @@ class BootstrapClient extends ComponentDefinition {
   private var avg: Float = _ ;
   private var mymap = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
-  var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
+  var presetAvg = cfg.getValue[Int]("id2203.project.avg");
   var gradient: ListBuffer[Float] = ListBuffer()
   var transporter: ListBuffer[ListBuffer[Float]] = ListBuffer()
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   private var minmap = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   private var epochCount: Int = 1;
-  private var epochs: Int = 1000;
+  private var epochs: Int = 500;
 
   //******* Handlers ******
   ctrl uponEvent {
@@ -135,7 +135,7 @@ class BootstrapClient extends ComponentDefinition {
       case _ =>  // Share phase
       finalGradients += (index -> ListBuffer());
       mymap(succNI) foreach { eachList =>
-         avg = Bulyan.BulyanInit(eachList.toList, closestVectors, bruteAvg, epochCount);
+        avg =  MultiKrum.MultiKrumInit(eachList.toList, closestVectors, presetAvg, epochCount);
         finalGradients.update(index, finalGradients(index) :++ ListBuffer(Array(avg)));
       }
       println("Computed final gradient " + finalGradients(index) + " for index " + index);  
@@ -177,19 +177,19 @@ class BootstrapClient extends ComponentDefinition {
     // There are multiple ways to evaluate. Let us demonstrate them:
         if(incPhase == 1) {
           MLPMnist.modelInit(currentNI); 
-          gradient = MLPMnist.trig(currentNI); 
+          gradient = MLPMnist.triggerInitialGradinets(currentNI); 
           transporter = round(gradient.toList, threshold)
                
           var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-          //println("List of integers generated ", gradient);
-          //println("List of integers generated in map ", gradientsToMap);
+          println("List of integers generated ", gradient);
+          println("List of integers generated in map ", gradientsToMap);
       }
       if(incPhase == 2) {
           val sortProcess = scala.collection.mutable.Map(sharedGrads.toSeq.sortBy(_._1):_*)
           val buffer = sortProcess.map{case(i, x) => x};
           println(sortProcess)
           println(buffer.flatten.flatten)
-           gradient = MLPMnist.trigPhase2(buffer.flatten.flatten.toArray, epochCount, currentNI, epochs); 
+           gradient = MLPMnist.triggerTraining(buffer.flatten.flatten.toArray, epochCount, currentNI, epochs); 
           transporter = round(gradient.toList, threshold)
       }
       println(transporter)

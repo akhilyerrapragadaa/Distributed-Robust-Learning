@@ -68,15 +68,16 @@ class BootstrapServer extends ComponentDefinition {
   private var currentNI : Int = _;
   private var succNI : Int = _;
   private var avg: Float = _ ;
-  private var mymap = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
+  private var receivedGradients = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   var closestVectors = cfg.getValue[Int]("id2203.project.closestVectors");
-  var bruteAvg = cfg.getValue[Int]("id2203.project.BruteAvg");
+  var presetAvg = cfg.getValue[Int]("id2203.project.avg");
   var gradient: ListBuffer[Float] = ListBuffer()
   var transporter: ListBuffer[ListBuffer[Float]] = ListBuffer()
   private var finalGradients = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
-  private var minmap = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
+  private var processGradients = scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]()
   private var epochCount: Int = 1;
-  private var epochs: Int = 1000;
+  private var epochs: Int = 500;
+  private var t1: Double = 0.0;
 
   //******* Handlers ******
   ctrl uponEvent { 
@@ -111,10 +112,9 @@ class BootstrapServer extends ComponentDefinition {
   }
 
   boot uponEvent {
+    // Receive all assignments from Topology generator component
     case InitialAssignments(assignment) => {
-      initialAssignment = assignment;
-      log.info("Seeding assignments...");
-
+      // Set BootstrapServer's predecessor and successor
       assignment foreach { node =>
           if(self == node.get_current_address()){
             currentNI = node.get_index()
@@ -123,15 +123,16 @@ class BootstrapServer extends ComponentDefinition {
             successorN = node.get_succ_address()
           }
       } 
+      // Send the generated topology to all workers 
       active foreach { node =>
         trigger(NetMessage(self, node, Boot(assignment)) -> net);
       }
+      // BootstrapServer open to receive gradients 
       ready += self;
-      
-      var inC = generateGradients(1, bootThreshold, finalGradients);
-      println(inC.length)
+      // Create a model and generate gradinets
+      generateGradients(1, bootThreshold, finalGradients);
       var converter = transporter(currentNI).map(Array(_))
-      println("Converter...................", converter)
+      // Trigger Share-Reduce phase
       trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
     }
   }
@@ -145,46 +146,49 @@ class BootstrapServer extends ComponentDefinition {
       ready += header.src;
     }
     case NetMessage(header, Msg(incGradient, index)) => {
-      var incConverter = transporter(index).map(Array(_))
-      mymap = allVals(incGradient, index, incConverter);
-      //println(mymap)
-
+      var preProcessor = transporter(index).map(Array(_))
+      // Receive gradinets from workers
+      receivedGradients = allVals(incGradient, index, preProcessor);
       index match {
-      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(mymap(index), index)) -> net); 
-      case _ =>  // Share phase
+      // Trigger Share - Reduce
+      case index if index != succNI => trigger(NetMessage(self, successorN, Msg(receivedGradients(index), index)) -> net); 
+      //  Trigger All share phase
+      case _ =>  
       finalGradients += (index -> ListBuffer());
-      mymap(succNI) foreach { eachList =>
-        avg = Bulyan.BulyanInit(eachList.toList, closestVectors, bruteAvg, epochCount);
+      receivedGradients(succNI) foreach { eachList =>
+        // Byzantine resilience GAR
+        avg = MultiKrum.MultiKrumInit(eachList.toList, closestVectors, presetAvg, epochCount);
+        // Update final gradients of an index 
         finalGradients.update(index, finalGradients(index) :++ ListBuffer(Array(avg)));
       } 
-      println("Computed final gradient " + finalGradients(index) + " for index " + index);  
+      println("Computed final gradient " + finalGradients(index) + " for index " + index); 
+      // Share with all other workers 
       trigger(NetMessage(self, successorN, SharePhase(finalGradients(index), index)) -> net);
       }
     }
     case NetMessage(header, SharePhase(incGradient, index)) => {
       index match {
+      // Update received gradinets and forward the index to next worker
       case index if index != succNI => println("Final gradient for index ", index, incGradient);
       finalGradients += (index -> ListBuffer());
       finalGradients.update(index, incGradient);
-      println("Byzantine resilient gradients for features! ");
-      //println(finalGradients);
       trigger(NetMessage(self, successorN, SharePhase(incGradient, index)) -> net);
-      case index if index == succNI => 
+      // Trigger model training once Share-reduce is completed
+      case index if index == succNI =>
+      // Begin model training with received gradients
+      // Train the model until 500 epochs
       if(epochCount <= epochs){
-       // Send all into this
+        // Final gradients given as an input to model 
         var trainedGrads = generateGradients(2, bootThreshold, finalGradients);
-        println(trainedGrads)
-        // Trigger again
-        mymap = scala.collection.mutable.Map()
+        // Reset variables
+        receivedGradients = scala.collection.mutable.Map()
         finalGradients = scala.collection.mutable.Map()
-        minmap = scala.collection.mutable.Map()
-
-        epochCount += 1; epochCount - 1
-        println(epochCount)
-        
-        var converter = trainedGrads(currentNI).map(Array(_))
-        println("Converter...................", converter)
-        trigger(NetMessage(self, successorN, Msg(converter, currentNI)) -> net);
+        processGradients = scala.collection.mutable.Map()
+        // Increment epochs
+        epochCount += 1;
+        var preProcessor = trainedGrads(currentNI).map(Array(_))
+        // Trigger Share-reduce again
+        trigger(NetMessage(self, successorN, Msg(preProcessor, currentNI)) -> net);
       }
       case _ => // Do Nothing
       } 
@@ -192,22 +196,17 @@ class BootstrapServer extends ComponentDefinition {
   }
 
   def generateGradients(incPhase : Int, threshold: Int, sharedGrads: scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]]): ListBuffer[ListBuffer[Float]] = {
-    // There are multiple ways to evaluate. Let us demonstrate them:
-       if(incPhase == 1) {
+      // Initiate model and generate gradinets
+      if(incPhase == 1) {
           MLPMnist.modelInit(currentNI); 
-          gradient = MLPMnist.trig(currentNI); 
+          gradient = MLPMnist.triggerInitialGradinets(currentNI); 
           transporter = round(gradient.toList, threshold)
-               
-          var gradientsToMap = gradient.zipWithIndex.map{ case (v,i) => (i,v) }.toMap
-          //println("List of integers generated ", gradient);
-          //println("List of integers generated in map ", gradientsToMap);
       }
+      // Begin training with the updated gradinets
       if(incPhase == 2) {
           val sortProcess = scala.collection.mutable.Map(sharedGrads.toSeq.sortBy(_._1):_*)
           val buffer = sortProcess.map{case(i, x) => x};
-          println(sortProcess)
-          println(buffer.flatten.flatten)
-          gradient = MLPMnist.trigPhase2(buffer.flatten.flatten.toArray, epochCount, currentNI, epochs); 
+          gradient = MLPMnist.triggerTraining(buffer.flatten.flatten.toArray, epochCount, currentNI, epochs); 
           transporter = round(gradient.toList, threshold)
       }
       println(transporter)
@@ -233,11 +232,11 @@ class BootstrapServer extends ComponentDefinition {
   
 
   def allVals(incGradient: ListBuffer[Array[Float]], index : Int, currGradient: ListBuffer[Array[Float]]): scala.collection.mutable.Map[Int,ListBuffer[Array[Float]]] = {
-    minmap += (index -> ListBuffer())
+    processGradients += (index -> ListBuffer())
     incGradient.zipWithIndex.foreach{ case(x,i) => 
-      minmap.update(index, minmap(index) :++ ListBuffer(currGradient(i) ++ x))
+      processGradients.update(index, processGradients(index) :++ ListBuffer(currGradient(i) ++ x))
     }
-    minmap
+    processGradients
   }
 
 }

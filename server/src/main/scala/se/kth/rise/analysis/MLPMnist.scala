@@ -1,7 +1,7 @@
-
 package se.kth.rise.analysis;
 
-import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator
+import org.deeplearning4j.datasets.iterator._
+import org.deeplearning4j.datasets.iterator.impl._
 import org.nd4j.linalg.dataset.api.iterator._
 import org.deeplearning4j.eval.Evaluation
 import org.deeplearning4j.nn.api.OptimizationAlgorithm
@@ -30,7 +30,7 @@ object MLPMnist {
     val numRows = 28
     val numColumns = 28
     val outputNum = 10 // number of output classes
-    val batchSize = 256 // batch size for each epoch
+    val batchSize = 128 // batch size for each epoch
     val rngSeed = 123 // random number seed for reproducibility
     val numEpochs = 15 // number of epochs to perform
     var gradient: ListBuffer[Float] = ListBuffer()
@@ -47,11 +47,7 @@ object MLPMnist {
       .seed(rngSeed) //include a random seed for reproducibility
       // use stochastic gradient descent as an optimization algorithm
       .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-      .iterations(1)
       .learningRate(0.5) //specify the learning rate
-      .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
-      .regularization(true)
-      .l2(1e-4)
       .list
       .layer(0, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) // 0_W (weights - 784 * 10) // 0_b (bias - 10)
         .nIn(numRows * numColumns)
@@ -68,7 +64,7 @@ object MLPMnist {
     ModelSerializer.writeModel(model, "server/src/main/scala/se/kth/rise/models/model" + nodeIndex + ".zip", true)
   }
   
-  def trig(nodeIndex: Int): ListBuffer[Float] = {
+  def triggerInitialGradinets(nodeIndex: Int): ListBuffer[Float] = {
 
     //Get the DataSetIterators:
     val mnistTrain1 = new MnistDataSetIterator(batchSize, true, rngSeed)
@@ -79,9 +75,10 @@ object MLPMnist {
     miniBatch = 0;
     println("Epoch 0")
 
-   var diver = 21
+    // mini batch size 468/15 = 31, where 15 are workers
+   var diver = 31
 
-     while (miniBatch < 234) {
+     while (miniBatch < 468) {
       if(miniBatch >= (nodeIndex * diver)  &&  miniBatch < ((nodeIndex + 1) * diver)){
         println(miniBatch)
        val next: DataSet = mnistTrain1.next
@@ -90,7 +87,8 @@ object MLPMnist {
        miniBatch += 1; miniBatch - 1
     }
 
-     if(nodeIndex == 2 || nodeIndex == 3) {
+    // Nodes 2, 3, 4 are set to byzantine
+     if(nodeIndex == 2 || nodeIndex == 3 || nodeIndex == 4) {
       //Byzantines
       println("BYZANTINE!!!!")
       var shape = Array(784, 10)  
@@ -104,10 +102,9 @@ object MLPMnist {
 
       model.gradient().setGradientFor("0_W", x_1d)
       model.gradient().setGradientFor("0_b", x_2d)
-
       model.update(model.gradient())
     }
-    
+  
     globModel = model;
 
     var grads = model.gradient(); 
@@ -132,12 +129,12 @@ object MLPMnist {
     epochToCSV += 0
     accuracyToCSV += eval.accuracy().toFloat
     println(eval.stats)
-    println("****************Example finished********************")
+    println("************Training successful************")
     println(gradient.length)
     gradient
   }
 
-  def trigPhase2(inoc: Array[Float], incEpoch: Int, nodeIndex: Int, totalEpochs: Int): ListBuffer[Float] = {
+  def triggerTraining(inoc: Array[Float], incEpoch: Int, nodeIndex: Int, totalEpochs: Int): ListBuffer[Float] = {
 
     //Get the DataSetIterators:
     val mnistTrain = new MnistDataSetIterator(batchSize, true, rngSeed)
@@ -150,14 +147,11 @@ object MLPMnist {
 
     var x_2d :INDArray = Nd4j.create(right);
 
-
     val wts = left.grouped(10).toArray
 
     var x_1d :INDArray = Nd4j.create(wts);
-    //println(x_1d)
 
- 
-    if(nodeIndex == 2 || nodeIndex == 3 ) {
+     if(nodeIndex == 2 || nodeIndex == 3 || nodeIndex == 4) {
       //Byzantines
       println("BYZANTINE!!!!")
       var shape = Array(784, 10)  
@@ -170,7 +164,6 @@ object MLPMnist {
       //Nd4j.ones(10)
     }
  
- 
     clone.gradient().setGradientFor("0_W", x_1d)
     clone.gradient().setGradientFor("0_b", x_2d)
 
@@ -179,10 +172,11 @@ object MLPMnist {
      miniBatch = 0;
      println("Epoch " + incEpoch)
 
-     var diver = 21
+    // mini batch size 468/15 = 31, where 15 are workers
 
+    var diver = 31
 
-    while (miniBatch < 234) {
+    while (miniBatch < 468) {
       if(miniBatch >= (nodeIndex * diver)  &&  miniBatch < ((nodeIndex + 1) * diver)){
         println(miniBatch)
        val next: DataSet = mnistTrain1.next
